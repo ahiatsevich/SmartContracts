@@ -109,4 +109,36 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     function _approve(address _spender, uint _value, address _sender) internal returns(bool) {
         return proxy.__approve(_spender, _value, _sender);
     }
+
+    function __totalSupply() public view returns(uint) {
+        return _totalSupply();
+    }
+
+    function _totalSupply() public view returns(uint) {
+        return proxy.__totalSupply();
+    }
+
+    function __balanceOf(address _owner) public view returns(uint) {
+        return _balanceOf(_owner);
+    }
+
+    function _balanceOf(address _owner) public view returns(uint) {
+        return proxy.__balanceOf(_owner);
+    }
+
+    function __allowance(address _from, address _spender) public view returns(uint) {
+        return _allowance(_from, _spender);
+    }
+
+    function _allowance(address _from, address _spender) public view returns(uint) {
+        return proxy.__allowance(_from, _spender);
+    }
+
+    function __baseUnit() public view returns(uint8) {
+        return _baseUnit();
+    }
+
+    function _baseUnit() public view returns(uint8) {
+        return proxy.__baseUnit();
+    }
 }
