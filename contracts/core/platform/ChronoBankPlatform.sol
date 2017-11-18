@@ -233,7 +233,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
     *
     * @return number of symbols
     */
-    function symbolsCount() public constant returns (uint) {
+    function symbolsCount() public view returns (uint) {
         return symbols.length;
     }
 
@@ -244,7 +244,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset existance.
      */
-    function isCreated(bytes32 _symbol) constant returns(bool) {
+    function isCreated(bytes32 _symbol) public view returns(bool) {
         return assets[_symbol].owner != 0;
     }
 
@@ -255,7 +255,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset decimals.
      */
-    function baseUnit(bytes32 _symbol) constant returns(uint8) {
+    function baseUnit(bytes32 _symbol) public view returns(uint8) {
         return assets[_symbol].baseUnit;
     }
 
@@ -266,7 +266,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset name.
      */
-    function name(bytes32 _symbol) constant returns(string) {
+    function name(bytes32 _symbol) public view returns(string) {
         return assets[_symbol].name;
     }
 
@@ -277,7 +277,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset description.
      */
-    function description(bytes32 _symbol) constant returns(string) {
+    function description(bytes32 _symbol) public view returns(string) {
         return assets[_symbol].description;
     }
 
@@ -288,7 +288,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset reissuability.
      */
-    function isReissuable(bytes32 _symbol) constant returns(bool) {
+    function isReissuable(bytes32 _symbol) public view returns(bool) {
         return assets[_symbol].isReissuable;
     }
 
@@ -299,7 +299,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset owner address.
      */
-    function owner(bytes32 _symbol) constant returns(address) {
+    function owner(bytes32 _symbol) public view returns(address) {
         return holders[assets[_symbol].owner].addr;
     }
 
@@ -311,7 +311,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return owner rights availability.
      */
-    function isOwner(address _owner, bytes32 _symbol) constant returns(bool) {
+    function isOwner(address _owner, bytes32 _symbol) public view returns(bool) {
         return isCreated(_symbol) && (assets[_symbol].owner == getHolderId(_owner));
     }
 
@@ -323,7 +323,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
     *
     * @return owner rights availability.
     */
-    function hasAssetRights(address _owner, bytes32 _symbol) constant returns (bool) {
+    function hasAssetRights(address _owner, bytes32 _symbol) public view returns (bool) {
         uint holderId = getHolderId(_owner);
         return isCreated(_symbol) && (assets[_symbol].owner == holderId || assets[_symbol].partowners[holderId]);
     }
@@ -335,7 +335,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return asset total supply.
      */
-    function totalSupply(bytes32 _symbol) constant returns(uint) {
+    function totalSupply(bytes32 _symbol) public view returns(uint) {
         return assets[_symbol].totalSupply;
     }
 
@@ -347,7 +347,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return holder balance.
      */
-    function balanceOf(address _holder, bytes32 _symbol) constant returns(uint) {
+    function balanceOf(address _holder, bytes32 _symbol) public view returns(uint) {
         return _balanceOf(getHolderId(_holder), _symbol);
     }
 
@@ -359,7 +359,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return holder balance.
      */
-    function _balanceOf(uint _holderId, bytes32 _symbol) constant returns(uint) {
+    function _balanceOf(uint _holderId, bytes32 _symbol) public view returns(uint) {
         return assets[_symbol].wallets[_holderId].balance;
     }
 
@@ -370,7 +370,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return holder address.
      */
-    function _address(uint _holderId) constant returns(address) {
+    function _address(uint _holderId) public view returns(address) {
         return holders[_holderId].addr;
     }
 
@@ -418,7 +418,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return success.
      */
-    function setProxy(address _proxyAddress, bytes32 _symbol) onlyOneOfContractOwners returns(uint) {
+    function setProxy(address _proxyAddress, bytes32 _symbol) public onlyOneOfContractOwners returns(uint) {
         if (proxies[_symbol] != 0x0) {
             return CHRONOBANK_PLATFORM_PROXY_ALREADY_EXISTS;
         }
@@ -498,7 +498,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return success.
      */
-    function proxyTransferWithReference(address _to, uint _value, bytes32 _symbol, string _reference, address _sender) onlyProxy(_symbol) returns(uint) {
+    function proxyTransferWithReference(address _to, uint _value, bytes32 _symbol, string _reference, address _sender) public onlyProxy(_symbol) returns(uint) {
         return _transfer(getHolderId(_sender), _createHolderId(_to), _value, _symbol, _reference, getHolderId(_sender));
     }
 
@@ -526,7 +526,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return holder id.
      */
-    function getHolderId(address _holder) constant returns(uint) {
+    function getHolderId(address _holder) public view returns(uint) {
         return holderIndex[_holder];
     }
 
@@ -681,7 +681,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return success.
      */
-    function changeOwnership(bytes32 _symbol, address _newOwner) onlyOwner(_symbol) public returns(uint) {
+    function changeOwnership(bytes32 _symbol, address _newOwner) public onlyOwner(_symbol) returns(uint) {
         if (_newOwner == 0x0) {
             return _error(CHRONOBANK_PLATFORM_INVALID_NEW_OWNER);
         }
@@ -711,7 +711,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return trust existance.
      */
-    function isTrusted(address _from, address _to) constant returns(bool) {
+    function isTrusted(address _from, address _to) public view returns(bool) {
         return holders[getHolderId(_from)].trust[_to];
     }
 
@@ -722,7 +722,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return success.
      */
-    function trust(address _to) returns(uint) {
+    function trust(address _to) public returns(uint) {
         uint fromId = _createHolderId(msg.sender);
         // Should trust to another address.
         if (fromId == getHolderId(_to)) {
@@ -845,7 +845,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return holder to spender allowance.
      */
-    function allowance(address _from, address _spender, bytes32 _symbol) constant returns(uint) {
+    function allowance(address _from, address _spender, bytes32 _symbol) public view returns(uint) {
         return _allowance(getHolderId(_from), getHolderId(_spender), _symbol);
     }
 
@@ -858,7 +858,7 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      *
      * @return holder to spender allowance.
      */
-    function _allowance(uint _fromId, uint _toId, bytes32 _symbol) constant internal returns(uint) {
+    function _allowance(uint _fromId, uint _toId, bytes32 _symbol) internal view returns(uint) {
         return assets[_symbol].wallets[_fromId].allowance[_toId];
     }
 
