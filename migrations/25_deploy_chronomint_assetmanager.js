@@ -1,6 +1,6 @@
 var AssetsManager = artifacts.require("./AssetsManager.sol");
 const Storage = artifacts.require('./Storage.sol');
-const ProxyFactory = artifacts.require("./ProxyFactory.sol");
+const TokenFactory = artifacts.require("./TokenFactory.sol");
 const ChronoBankPlatformFactory = artifacts.require("./ChronoBankPlatformFactory.sol");
 const StorageManager = artifacts.require("./StorageManager.sol");
 const ContractsManager = artifacts.require("./ContractsManager.sol");
@@ -24,7 +24,7 @@ module.exports = function (deployer, network) {
         .then(() => AssetsManager.deployed())
         .then(_manager => assetsManager = _manager)
 
-        .then(() => assetsManager.init(ContractsManager.address, ChronoBankTokenExtensionFactory.address, ProxyFactory.address))
+        .then(() => assetsManager.init(ContractsManager.address, ChronoBankTokenExtensionFactory.address, TokenFactory.address))
 
 		// setup events history
         .then(() => MultiEventsHistory.deployed())

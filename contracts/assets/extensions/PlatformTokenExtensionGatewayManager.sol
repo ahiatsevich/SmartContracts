@@ -1,5 +1,6 @@
 pragma solidity ^0.4.11;
 
+
 import "./TokenExtensionRouter.sol";
 import "./PlatformTokenExtensionGatewayManagerEmitter.sol";
 import "./../TokenManagementInterface.sol";
@@ -20,23 +21,19 @@ contract ChronoBankAsset {
     function init(ChronoBankAssetProxyInterface _proxy) returns (bool);
 }
 
-
-contract TokenFactory {
-    function createAsset() returns (address);
-    function createAssetWithFee(address owner) returns (address);
-    function createProxy() returns (address);
-}
-
-
 contract PlatformFactory {
     function createPlatform(address _eventsHistory, address _owner) returns (address);
 }
 
-
-contract FactoryProvider {
-    function getTokenFactory() returns (TokenFactory);
+contract TokenFactoryInterface {
+  function createProxy() public returns (address);
+  function createAsset(bytes32 _type) public returns (address);
+  function createOwnedAsset(bytes32 _type, address _owner) public returns (address);
 }
 
+contract FactoryProvider {
+    function getTokenFactory() returns (TokenFactoryInterface);
+}
 
 contract CrowdsaleManager {
     function createCrowdsale(address _creator, bytes32 _symbol, bytes32 _factoryName) returns (address, uint);
@@ -343,7 +340,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     *
     * @return factory address
     */
-    function getTokenFactory() constant returns (TokenFactory) {
+    function getTokenFactory() constant returns (TokenFactoryInterface) {
         return FactoryProvider(lookupManager("AssetsManager")).getTokenFactory();
     }
 
@@ -456,7 +453,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     /**
     * @dev Binds asset with proxy and register it in ERC20Manager. PRIVATE
     */
-    function _bindAssetWithToken(TokenFactory _factory, address _asset, bytes32 _symbol, string _name, uint8 _decimals, bytes32 _ipfsHash) private returns (address token) {
+    function _bindAssetWithToken(TokenFactoryInterface _factory, address _asset, bytes32 _symbol, string _name, uint8 _decimals, bytes32 _ipfsHash) private returns (address token) {
         token = _factory.createProxy();
 
         if (OK != ChronoBankPlatformInterface(platform).setProxy(token, _symbol)) revert();
@@ -478,8 +475,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     * @param _feeAddress fee destination address
     * @param _fee fee percent value
     */
-    function _deployAssetWithFee(TokenFactory _factory, address _feeAddress, uint32 _fee) private returns (address _asset) {
-        _asset = _factory.createAssetWithFee(this);
+    function _deployAssetWithFee(TokenFactoryInterface _factory, address _feeAddress, uint32 _fee) private returns (address _asset) {
+        _asset = _factory.createOwnedAsset("ChronoBankAssetWithFee", this);
         FeeInterface(_asset).setupFee(_feeAddress, _fee);
         OwnedInterface(_asset).transferContractOwnership(msg.sender);
     }
@@ -491,8 +488,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     *
     * @return _asset created asset address
     */
-    function _createAsset(TokenFactory _factory) private returns (address _asset) {
-        _asset = _factory.createAsset();
+    function _createAsset(TokenFactoryInterface _factory) private returns (address _asset) {
+        _asset = _factory.createAsset("ChronoBankAsset");
     }
 
     /**
