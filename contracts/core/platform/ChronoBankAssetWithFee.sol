@@ -152,7 +152,7 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
      *
      * @return true if fee needs to be taken.
      */
-    function _subjectToFees(address _feeFrom, uint _fromValue) internal returns(bool) {
+    function _subjectToFees(address _feeFrom, uint _fromValue) internal view returns(bool) {
         return feeAddress != 0x0
             && feeAddress != _feeFrom
             && _fromValue != 0;
@@ -165,7 +165,7 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
      *
      * @return fee amount.
      */
-    function calculateFee(uint _value) constant returns(uint) {
+    function calculateFee(uint _value) public view returns(uint) {
         uint feeRaw = _value * feePercent;
         return (feeRaw / 10000) + (feeRaw % 10000 == 0 ? 0 : 1);
     }

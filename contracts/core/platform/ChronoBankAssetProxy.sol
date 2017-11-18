@@ -54,7 +54,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function init(ChronoBankPlatform _chronoBankPlatform, string _symbol, string _name) returns(bool) {
+    function init(ChronoBankPlatform _chronoBankPlatform, string _symbol, string _name) public returns(bool) {
         if (address(chronoBankPlatform) != 0x0) {
             return false;
         }
@@ -65,7 +65,7 @@ contract ChronoBankAssetProxy is ERC20 {
         return true;
     }
 
-    function stringToBytes32(string memory source) returns (bytes32 result) {
+    function stringToBytes32(string memory source) public pure returns (bytes32 result) {
         assembly {
            result := mload(add(source, 32))
         }
@@ -94,7 +94,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return asset implementation contract.
      */
-    function _getAsset() internal returns(ChronoBankAsset) {
+    function _getAsset() internal view returns(ChronoBankAsset) {
         return ChronoBankAsset(getVersionFor(msg.sender));
     }
 
@@ -103,7 +103,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return asset total supply.
      */
-    function totalSupply() constant returns(uint) {
+    function totalSupply() public view returns(uint) {
         return chronoBankPlatform.totalSupply(smbl);
     }
 
@@ -114,7 +114,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return holder balance.
      */
-    function balanceOf(address _owner) constant returns(uint) {
+    function balanceOf(address _owner) public view returns(uint) {
         return chronoBankPlatform.balanceOf(_owner, smbl);
     }
 
@@ -126,7 +126,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return holder to spender allowance.
      */
-    function allowance(address _from, address _spender) constant returns(uint) {
+    function allowance(address _from, address _spender) public view returns(uint) {
         return chronoBankPlatform.allowance(_from, _spender, smbl);
     }
 
@@ -135,7 +135,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return asset decimals.
      */
-    function decimals() constant returns(uint8) {
+    function decimals() public view returns(uint8) {
         return chronoBankPlatform.baseUnit(smbl);
     }
 
@@ -147,7 +147,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function transfer(address _to, uint _value) returns(bool) {
+    function transfer(address _to, uint _value) public returns(bool) {
         if (_to != 0x0) {
           return _transferWithReference(_to, _value, "");
         }
@@ -165,7 +165,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function transferWithReference(address _to, uint _value, string _reference) returns(bool) {
+    function transferWithReference(address _to, uint _value, string _reference) public returns(bool) {
         if (_to != 0x0) {
             return _transferWithReference(_to, _value, _reference);
         }
@@ -196,7 +196,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function __transferWithReference(address _to, uint _value, string _reference, address _sender) onlyAccess(_sender) returns(bool) {
+    function __transferWithReference(address _to, uint _value, string _reference, address _sender) public onlyAccess(_sender) returns(bool) {
         return chronoBankPlatform.proxyTransferWithReference(_to, _value, smbl, _reference, _sender) == OK;
     }
 
@@ -209,7 +209,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function transferFrom(address _from, address _to, uint _value) returns(bool) {
+    function transferFrom(address _from, address _to, uint _value) public returns(bool) {
         if (_to != 0x0) {
             return _getAsset().__transferFromWithReference(_from, _to, _value, "", msg.sender);
          }
@@ -231,7 +231,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function __transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) onlyAccess(_sender) returns(bool) {
+    function __transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) public onlyAccess(_sender) returns(bool) {
         return chronoBankPlatform.proxyTransferFromWithReference(_from, _to, _value, smbl, _reference, _sender) == OK;
     }
 
@@ -243,7 +243,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function approve(address _spender, uint _value) returns(bool) {
+    function approve(address _spender, uint _value) public returns(bool) {
         if (_spender != 0x0) {
              return _getAsset().__approve(_spender, _value, msg.sender);
         }
@@ -263,7 +263,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function __approve(address _spender, uint _value, address _sender) onlyAccess(_sender) returns(bool) {
+    function __approve(address _spender, uint _value, address _sender) public onlyAccess(_sender) returns(bool) {
         return chronoBankPlatform.proxyApprove(_spender, _value, smbl, _sender) == OK;
     }
 
@@ -272,7 +272,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * Can only be, and, called by assigned platform when asset transfer happens.
      */
-    function emitTransfer(address _from, address _to, uint _value) onlyChronoBankPlatform() {
+    function emitTransfer(address _from, address _to, uint _value) public onlyChronoBankPlatform() {
         Transfer(_from, _to, _value);
     }
 
@@ -281,7 +281,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * Can only be, and, called by assigned platform when asset allowance set happens.
      */
-    function emitApprove(address _from, address _spender, uint _value) onlyChronoBankPlatform() {
+    function emitApprove(address _from, address _spender, uint _value) public onlyChronoBankPlatform() {
         Approval(_from, _spender, _value);
     }
 
@@ -330,7 +330,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return asset implementation contract address.
      */
-    function getVersionFor(address _sender) constant returns(address) {
+    function getVersionFor(address _sender) public view returns(address) {
         return userOptOutVersion[_sender] == 0 ? latestVersion : userOptOutVersion[_sender];
     }
 
@@ -339,7 +339,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return asset implementation contract address.
      */
-    function getLatestVersion() constant returns(address) {
+    function getLatestVersion() public view returns(address) {
         return latestVersion;
     }
 
@@ -348,7 +348,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return asset implementation contract address.
      */
-    function getPendingVersion() constant returns(address) {
+    function getPendingVersion() public view returns(address) {
         return pendingVersion;
     }
 
@@ -357,7 +357,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return freeze-time start.
      */
-    function getPendingVersionTimestamp() constant returns(uint) {
+    function getPendingVersionTimestamp() public view returns(uint) {
         return pendingVersionTimestamp;
     }
 
@@ -372,7 +372,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function proposeUpgrade(address _newVersion) onlyAssetOwner() returns(bool) {
+    function proposeUpgrade(address _newVersion) public onlyAssetOwner() returns(bool) {
         // Should not already be in the upgrading process.
         if (pendingVersion != 0x0) {
             return false;
@@ -399,7 +399,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function purgeUpgrade() onlyAssetOwner() returns(bool) {
+    function purgeUpgrade() public onlyAssetOwner() returns(bool) {
         if (pendingVersion == 0x0) {
             return false;
         }
@@ -415,7 +415,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function commitUpgrade() returns(bool) {
+    function commitUpgrade() public returns(bool) {
         if (pendingVersion == 0x0) {
             return false;
         }
@@ -434,7 +434,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function optOut() returns(bool) {
+    function optOut() public returns(bool) {
         if (userOptOutVersion[msg.sender] != 0x0) {
             return false;
         }
@@ -448,7 +448,7 @@ contract ChronoBankAssetProxy is ERC20 {
      *
      * @return success.
      */
-    function optIn() returns(bool) {
+    function optIn() public returns(bool) {
         delete userOptOutVersion[msg.sender];
         return true;
     }
