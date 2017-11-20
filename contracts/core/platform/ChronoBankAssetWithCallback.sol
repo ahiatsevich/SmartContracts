@@ -12,17 +12,32 @@ contract ChronoBankAssetWithCallbackListener is ERC223ReceiverInterface {
  * @title ChronoBank Asset With Callback implementation contract.
  */
 contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
+    // max allowed number of listeners
     uint constant MAX_LISTENERS_COUNT = 16;
     // list of listeners
     address[16] public listeners;
+    // listeners count
     uint public listenersCount;
 
     // index on the list of listeners to allow reverse lookup
     mapping(address => uint) listenerIndexs;
+    // each listener could be notified with personal(isolated) data
     mapping(address => bytes) listenersData;
 
     /**
+    *  Add given address to listeners.
     *
+    *  _listener must implement ChronoBankAssetWithCallbackListener interface.
+    *  Note, no compatibility checks are performed at this method.
+    *
+    *  _listener will be notified with given _data
+    *
+    *  This method can be executed only by contractOwner.
+    *
+    *  @param _listener contract address
+    *  @param _data which will be used as an additional param in notification
+    *
+    *  @return success.
     */
     function addListener(address _listener, bytes _data) public onlyContractOwner returns (bool) {
         if (isListener(_listener)) return;
@@ -42,7 +57,13 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
     }
 
     /**
+    *  Removed address from listeners.
     *
+    *  This method can be executed only by contractOwner.
+    *
+    *  @param _listener contract address
+    *
+    *  @return success.
     */
     function removeListener(address _listener) public onlyContractOwner returns (bool) {
         uint listenerIndex = listenerIndexs[_listener];
@@ -61,14 +82,18 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
     }
 
     /**
+    *  Tells whether given address is listener or not.
     *
+    *  @param _listener contract address
+    *
+    *  @return is listener or not.
     */
     function isListener(address _listener) public constant returns (bool) {
         return listenerIndexs[_listener] > 0;
     }
 
     /**
-    *
+    *  Returns data assigned to used for listener notification
     */
     function getListenerData(address _listener) public constant returns (bytes) {
         return listenersData[_listener];
@@ -91,7 +116,7 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
     }
 
     /**
-    *
+    *  Notify listener that Transfer has been performed.
     */
     function notifyOnTransfer(address _from, uint _value) internal {
         for (uint i = 0; i < listenersCount; i++) {
@@ -103,7 +128,7 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
     }
 
     /**
-    *
+    *  Reorganize listeners, get rid of empty gaps.
     */
     function reorganizeListeners() private {
         uint free = 1;

@@ -110,34 +110,90 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
         return proxy.__approve(_spender, _value, _sender);
     }
 
+    /**
+     * Passes execution into virtual function.
+     *
+     * Can only be called by assigned asset proxy.
+     *
+     * @return success.
+     * @dev function is final, and must not be overridden.
+     */
     function __totalSupply() public view returns(uint) {
         return _totalSupply();
     }
 
+    /**
+     * Calls back without modifications.
+     *
+     * @return success.
+     * @dev function is virtual, and meant to be overridden.
+     */
     function _totalSupply() public view returns(uint) {
         return proxy.__totalSupply();
     }
 
+    /**
+     * Passes execution into virtual function.
+     *
+     * Can only be called by assigned asset proxy.
+     *
+     * @return success.
+     * @dev function is final, and must not be overridden.
+     */
     function __balanceOf(address _owner) public view returns(uint) {
         return _balanceOf(_owner);
     }
 
+    /**
+     * Calls back without modifications.
+     *
+     * @return success.
+     * @dev function is virtual, and meant to be overridden.
+     */
     function _balanceOf(address _owner) public view returns(uint) {
         return proxy.__balanceOf(_owner);
     }
 
+    /**
+     * Passes execution into virtual function.
+     *
+     * Can only be called by assigned asset proxy.
+     *
+     * @return success.
+     * @dev function is final, and must not be overridden.
+     */
     function __allowance(address _from, address _spender) public view returns(uint) {
         return _allowance(_from, _spender);
     }
 
+    /**
+     * Calls back without modifications.
+     *
+     * @return success.
+     * @dev function is virtual, and meant to be overridden.
+     */
     function _allowance(address _from, address _spender) public view returns(uint) {
         return proxy.__allowance(_from, _spender);
     }
 
+    /**
+     * Passes execution into virtual function.
+     *
+     * Can only be called by assigned asset proxy.
+     *
+     * @return success.
+     * @dev function is final, and must not be overridden.
+     */
     function __baseUnit() public view returns(uint8) {
         return _baseUnit();
     }
 
+    /**
+     * Calls back without modifications.
+     *
+     * @return success.
+     * @dev function is virtual, and meant to be overridden.
+     */
     function _baseUnit() public view returns(uint8) {
         return proxy.__baseUnit();
     }
