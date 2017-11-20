@@ -108,7 +108,10 @@ contract ChronoBankAssetProxy is ERC20 {
     }
 
     /**
-    * TODO: doc
+    * Returns asset total supply.
+    * This method is designed to be called by proxy only.
+    *
+    * @return asset total supply.
     */
     function __totalSupply() public view returns(uint) {
         return chronoBankPlatform.totalSupply(smbl);
@@ -125,8 +128,14 @@ contract ChronoBankAssetProxy is ERC20 {
         return _getAsset().__balanceOf(_owner);
     }
 
+
     /**
-    * TODO: doc
+    * Returns asset balance for a particular holder.
+    * This method is designed to be called by proxy only.
+    *
+    * @param _owner holder address.
+    *
+    * @return holder balance.
     */
     function __balanceOf(address _owner) public view returns(uint) {
         return chronoBankPlatform.balanceOf(_owner, smbl);
@@ -145,8 +154,14 @@ contract ChronoBankAssetProxy is ERC20 {
     }
 
     /**
-    * TODO: doc
-    */
+     * Returns asset allowance from one holder to another.
+     * This method is designed to be called by proxy only.
+     *
+     * @param _from holder that allowed spending.
+     * @param _spender holder that is allowed to spend.
+     *
+     * @return holder to spender allowance.
+     */
     function __allowance(address _from, address _spender) public view returns(uint) {
         return chronoBankPlatform.allowance(_from, _spender, smbl);
     }
@@ -161,8 +176,11 @@ contract ChronoBankAssetProxy is ERC20 {
     }
 
     /**
-    * TODO: doc
-    */
+     * Returns asset decimals.
+     * This method is designed to be called by proxy only.
+     *
+     * @return asset decimals.
+     */
     function __decimals() public view returns(uint8) {
         return chronoBankPlatform.baseUnit(smbl);
     }
