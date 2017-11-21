@@ -31,5 +31,6 @@ contract ChronoBankPlatformInterface {
     function reissueAsset(bytes32 _symbol, uint _value) public returns(uint errorCode);
     function revokeAsset(bytes32 _symbol, uint _value) public returns(uint errorCode);
 
+    function hasAssetRights(address _owner, bytes32 _symbol) public view returns (bool);
     function changeOwnership(bytes32 _symbol, address _newOwner) public returns(uint errorCode);
 }

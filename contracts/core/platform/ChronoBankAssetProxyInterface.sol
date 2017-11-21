@@ -2,6 +2,7 @@ pragma solidity ^0.4.11;
 
 contract ChronoBankAssetProxyInterface {
     address public chronoBankPlatform;
+    function smbl() public view returns (bytes32);
     function __totalSupply() public view returns(uint);
     function __balanceOf(address _owner) public view returns(uint);
     function __allowance(address _from, address _spender) public view returns(uint);

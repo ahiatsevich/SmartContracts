@@ -2,6 +2,7 @@ pragma solidity ^0.4.11;
 
 import "./ChronoBankAssetInterface.sol";
 import {ChronoBankAssetProxyInterface as ChronoBankAssetProxy} from "./ChronoBankAssetProxyInterface.sol";
+import {ChronoBankPlatformInterface as ChronoBankPlatform} from "./ChronoBankPlatformInterface.sol";
 
 /**
  * @title ChronoBank Asset implementation contract.
@@ -14,14 +15,31 @@ import {ChronoBankAssetProxyInterface as ChronoBankAssetProxy} from "./ChronoBan
  * didn't happen yet.
  */
 contract ChronoBankAsset is ChronoBankAssetInterface {
+
     // Assigned asset proxy contract, immutable.
     ChronoBankAssetProxy public proxy;
+
+    // banned addresses
+    mapping (address => bool) public blacklist;
+
+    // stops asset transfers
+    bool public isStoped;
 
     /**
      * Only assigned proxy is allowed to call.
      */
     modifier onlyProxy() {
         if (proxy == msg.sender) {
+            _;
+        }
+    }
+
+    /**
+    *  Only assets's admins are allowed to execute
+    */
+    modifier onlyAuthorized() {
+        ChronoBankPlatform platform = ChronoBankPlatform(proxy.chronoBankPlatform());
+        if (platform.hasAssetRights(msg.sender, proxy.smbl())) {
             _;
         }
     }
@@ -45,6 +63,36 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     }
 
     /**
+    *  Restricts a given address to transfer/receive assets.
+    */
+    function restrict(address _restricted) onlyAuthorized returns (bool) {
+        blacklist[_restricted] = true;
+        return true;
+    }
+
+    /**
+    *  Lifts the ban on transfers for given address
+    */
+    function unrestrict(address _unrestricted) onlyAuthorized returns (bool) {
+        blacklist[_unrestricted] = false;
+        return true;
+    }
+
+    /**
+    *  Stops (or resumes) transfers in case of emergency.
+    *
+    *  Only admin of an asset is allowed to execute this method.
+    *
+    *  @param _isStoped tells, will asset be stoped or resumed
+    *
+    *  @return success.
+    */
+    function stop(bool _isStoped) onlyAuthorized returns (bool) {
+        isStoped = _isStoped;
+        return true;
+    }
+
+    /**
      * Passes execution into virtual function.
      *
      * Can only be called by assigned asset proxy.
@@ -57,12 +105,21 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     }
 
     /**
-     * Calls back without modifications.
+     * Calls back without modifications if an asset is not stopped.
+     * Checks whether _from/_sender are not in blacklist.
      *
      * @return success.
      * @dev function is virtual, and meant to be overridden.
      */
     function _transferWithReference(address _to, uint _value, string _reference, address _sender) internal returns(bool) {
+        if (isStoped) {
+            return false;
+        }
+
+        if (blacklist[_to] || blacklist[_sender]) {
+            return false;
+        }
+
         return proxy.__transferWithReference(_to, _value, _reference, _sender);
     }
 
@@ -79,12 +136,21 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     }
 
     /**
-     * Calls back without modifications.
+     * Calls back without modifications if an asset is not stopped.
+     * Checks whether _from/_sender are not in blacklist.
      *
      * @return success.
      * @dev function is virtual, and meant to be overridden.
      */
     function _transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) internal returns(bool) {
+        if (isStoped) {
+            return false;
+        }
+
+        if (blacklist[_to] || blacklist[_sender]) {
+            return false;
+        }
+
         return proxy.__transferFromWithReference(_from, _to, _value, _reference, _sender);
     }
 
