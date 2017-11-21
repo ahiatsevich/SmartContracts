@@ -11,6 +11,7 @@ import "../../core/common/OwnedInterface.sol";
 import "../../core/contracts/ContractsManagerInterface.sol";
 import "../../core/erc20/ERC20ManagerInterface.sol";
 import "../../core/erc20/ERC20Interface.sol";
+import "../../core/event/MultiEventsHistory.sol";
 import "./../AssetsManagerInterface.sol";
 import "./../FeeInterface.sol";
 import "../../timeholder/FeatureFeeAdapter.sol";
@@ -266,6 +267,9 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         }
 
         address _asset = _createAsset(getTokenFactory());
+
+        require(MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory()).authorize(_asset));
+
         address _token = _bindAssetWithToken(getTokenFactory(), _asset, _symbol, _name, _decimals, _tokenImageIpfsHash);
 
         _emitAssetCreated(platform, _symbol, _token, msg.sender);
@@ -331,6 +335,9 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         }
 
         address _token = _bindAssetWithToken(getTokenFactory(), _deployAssetWithFee(getTokenFactory(), _feeAddress, _feePercent), _symbol, _name, _decimals, _tokenImageIpfsHash);
+
+        require(MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory()).authorize(_token));
+
         _emitAssetCreated(platform, _symbol, _token, msg.sender);
 
         _result[0] = OK;

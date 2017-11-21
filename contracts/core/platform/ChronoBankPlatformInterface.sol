@@ -33,4 +33,6 @@ contract ChronoBankPlatformInterface {
 
     function hasAssetRights(address _owner, bytes32 _symbol) public view returns (bool);
     function changeOwnership(bytes32 _symbol, address _newOwner) public returns(uint errorCode);
+    
+    function eventsHistory() public view returns (address);
 }
