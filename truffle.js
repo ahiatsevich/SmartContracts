@@ -56,5 +56,19 @@ networks: {
       runs: 200
     }
   },
+  solc: {
+    optimizer: {
+      enabled: true,
+      runs: 200
+    },
+    metadata: { useLiteralContent: true },
+    outputSelection: {
+      "*": {
+        "*": [
+          "metadata",
+        ]
+    },
+    }
+  },
   migrations_directory: './migrations'
 }

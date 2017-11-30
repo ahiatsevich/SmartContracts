@@ -6,6 +6,10 @@
   "scripts": {
     "release": "standard-version",
     "install": "cp truffle-config.js truffle.js",
+    "postinstall": "cd scripts/doxity; npm install; cd ../../",
+    "docs:develop": "cd scripts/doxity; ./node_modules/.bin/gatsby develop",
+    "docs:publish": "doxity publish",
+    "docs:build": "doxity build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "testgas": "NODE_ENV=gasreportgen ./node_modules/truffle/build/cli.bundled.js test",
     "gasreport": "./scripts/gas-report/gasreport.cli.js"
@@ -28,9 +32,9 @@
   "author": "Mike Fluff <mf@mikefluff.com> (http://mikefluff.com)",
   "license": "GPLv3",
   "dependencies": {
+    "browser-stdout": "1.3.0",
     "bs58": "^4.0.1",
     "buffer": "^5.0.6",
-    "browser-stdout": "1.3.0",
     "commander": "2.9.0",
     "diff": "3.2.0",
     "growl": "1.9.2",
@@ -48,8 +52,7 @@
     "mkdirp": "^0.5.1"
   },
   "devDependencies": {
-    "@digix/contest": "^0.2.6",
-    "@digix/tempo": "^0.2.0",
+    "@digix/doxity": "alesanro/doxity",
     "babel-preset-es2015": "^6.24.1",
     "babel-register": "^6.24.1",
     "ethereumjs-wallet": "0.6.0",

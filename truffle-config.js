@@ -11,6 +11,14 @@ networks: {
     optimizer: {
       enabled: true,
       runs: 200
+    },
+    metadata: { useLiteralContent: true },
+    outputSelection: {
+      "*": {
+        "*": [
+          "metadata",
+        ]
+    },
     }
   },
   migrations_directory: './migrations'
