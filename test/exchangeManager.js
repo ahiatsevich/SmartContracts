@@ -1,5 +1,5 @@
 const ContractsManager = artifacts.require("./ContractsManager.sol")
-const Exchange = artifacts.require("./Exchange.sol")
+const Exchange = artifacts.require("./ExchangeInterface.sol")
 const ExchangeFactory = artifacts.require("./ExchangeFactory.sol")
 const Setup = require('../setup/setup')
 const Reverter = require('./helpers/reverter')

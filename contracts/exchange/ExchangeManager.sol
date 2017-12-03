@@ -5,10 +5,11 @@ import "../core/erc20/ERC20Manager.sol";
 import "../core/event/MultiEventsHistory.sol";
 import {ERC20Interface as Asset} from "../core/erc20/ERC20Interface.sol";
 
-import "./Exchange.sol";
+import "./ExchangeInterface.sol";
 import "./ExchangeManagerEmitter.sol";
 import "./ExchangeFactory.sol";
 import "../timeholder/FeatureFeeAdapter.sol";
+
 
 /// @title ExchangeManager
 ///
@@ -28,11 +29,7 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
     StorageInterface.AddressesSetMapping owners; // (owner => exchange [])
     StorageInterface.UInt fee;
 
-    modifier onlyExchangeContractOwner(address _exchange) {
-        if (Exchange(_exchange).contractOwner() == msg.sender) {
-            _;
-        }
-    }
+    StorageInterface.Address backendAddress;
 
     /// Contructor
     function ExchangeManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
@@ -40,16 +37,20 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
         owners.init("ex_m_owners");
         exchangeFactory.init("ex_m_exchangeFactory");
         fee.init("ex_m_fee");
+        backendAddress.init("ex_m_backendAddress");
     }
 
     /// Initialises an exchange with the given params
-    function init(address _contractsManager, address _exchangeFactory)
+    function init(address _contractsManager, address _backendAddress, address _exchangeFactory)
     public
     onlyContractOwner
     returns (uint)
     {
         BaseManager.init(_contractsManager, "ExchangeManager");
         if (setExchangeFactory(_exchangeFactory) != OK) {
+            revert();
+        }
+        if (setBackendAddress(_backendAddress) != OK) {
             revert();
         }
         return OK;
@@ -77,6 +78,17 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
         require(_exchangeFactory != 0x0);
         store.set(exchangeFactory, _exchangeFactory);
         return OK;
+    }
+
+    function setBackendAddress(address _backend)
+    public
+    onlyContractOwner
+    returns (uint)
+    {
+        require(_backend != 0x0);
+        store.set(backendAddress, _backend);
+        return OK;
+
     }
 
     /// Creates a new exchange with the given params.
@@ -114,13 +126,13 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
             return _emitError(ERROR_EXCHANGE_STOCK_INTERNAL);
         }
 
-        Exchange exchange = Exchange(getExchangeFactory().createExchange());
+        ExchangeInterface exchange = ExchangeInterface(getExchangeFactory().createExchange(contractsManager, store.get(backendAddress)));
 
         if (!MultiEventsHistory(getEventsHistory()).authorize(exchange)) {
             revert();
         }
 
-        exchange.init(contractsManager, token, rewards, getFee());
+        exchange.init(contractsManager, store.get(backendAddress), token, rewards, getFee());
 
         if (_buyPrice > 0 && _sellPrice > 0) {
             if (exchange.setPrices(_buyPrice, _sellPrice, _useExternalPriceTicker) != OK) {
@@ -168,7 +180,7 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
         store.remove(exchanges, bytes32(msg.sender));
         MultiEventsHistory(getEventsHistory()).reject(msg.sender);
 
-        address owner = Exchange(msg.sender).contractOwner();
+        address owner = ExchangeInterface(msg.sender).contractOwner();
         store.remove(owners, bytes32(owner), msg.sender);
 
         _emitExchangeRemoved(msg.sender);
@@ -226,7 +238,7 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
 
         for (uint idx = 0; idx < _exchanges.length; idx++) {
             if (isExchangeExists(_exchanges[idx])) {
-                Exchange exchange = Exchange(_exchanges[idx]);
+                ExchangeInterface exchange = ExchangeInterface(_exchanges[idx]);
 
                 symbols[idx] = getSymbol(address(exchange.asset()));
                 buyPrices[idx] = exchange.buyPrice();
@@ -256,13 +268,13 @@ contract ExchangeManager is FeatureFeeAdapter, ExchangeManagerEmitter, BaseManag
     /* Events History util methods */
 
     function _emitExchangeRemoved(address _exchange) internal {
-        Asset asset = Exchange(_exchange).asset();
+        Asset asset = Asset(ExchangeInterface(_exchange).asset());
         ExchangeManagerEmitter(getEventsHistory())
             .emitExchangeRemoved(_exchange, getSymbol(address(asset)));
     }
 
     function _emitExchangeAdded(address _user, address _exchange) internal {
-        Asset asset = Exchange(_exchange).asset();
+        Asset asset = Asset(ExchangeInterface(_exchange).asset());
         ExchangeManagerEmitter(getEventsHistory())
             .emitExchangeAdded(_user, _exchange, getSymbol(address(asset)));
     }

@@ -6,37 +6,16 @@ import {ERC20Interface as Asset} from "../core/erc20/ERC20Interface.sol";
 import "../core/contracts/ContractsManager.sol";
 import "../core/erc20/ERC20Manager.sol";
 import "../priceticker/PriceTicker.sol";
+import "./ExchangeEmitter.sol";
 
-contract ExchangeEmitter {
-    function emitError(uint errorCode) public returns (uint);
-    function emitFeeUpdated(address rewards, uint feePercent, address by) public;
-    function emitPricesUpdated(uint buyPrice, uint sellPrice, bool usePriceTicker, address by) public;
-    function emitActiveChanged(bool isActive, address by) public;
-    function emitBuy(address who, uint token, uint eth) public;
-    function emitSell(address who, uint token, uint eth) public;
-    function emitWithdrawEther(address recipient, uint amount, address by) public;
-    function emitWithdrawTokens(address recipient, uint amount, address by) public;
-    function emitReceivedEther(address sender, uint amount) public;
-}
 
 contract IExchangeManager {
     function removeExchange() public returns (uint errorCode);
 }
 
-/// @title ERC20-Ether exchange contract.
-///
-/// @notice Users are able to buy/sell assigned ERC20 token for ether,
-/// as long as there is available supply. Contract owner maintains
-/// sufficient token and ether supply, and sets buy/sell prices.
-///
-/// In order to be able to sell tokens, user needs to create allowance
-/// for this contract, using standard ERC20 approve() function,
-/// so that exchange can take tokens from the user, when user
-/// orders a sell.
-///
-/// Note: all the non constant functions return false instead of
-/// throwing in case if state change didn't happen yet.
-contract Exchange is Object {
+
+/// @title ExchangeBackend.
+contract ExchangeBackend is Object {
     using SafeMath for uint;
     uint constant ERROR_EXCHANGE_INVALID_INVOCATION = 6000;
     uint constant ERROR_EXCHANGE_MAINTENANCE_MODE = 6001;
@@ -45,6 +24,11 @@ contract Exchange is Object {
     uint constant ERROR_EXCHANGE_INSUFFICIENT_ETHER_SUPPLY = 6005;
     uint constant ERROR_EXCHANGE_PAYMENT_FAILED = 6006;
     uint constant ERROR_EXCHANGE_TRANSFER_FAILED = 6007;
+
+    address internal backendAddress;
+
+    /// service registry
+    address internal contractsManager;
 
     /// Assigned ERC20 token.
     Asset public asset;
@@ -55,38 +39,17 @@ contract Exchange is Object {
     /// Fee value for operations 10000 is 0.01.
     uint public feePercent;
     /// Authorized price managers
-    mapping (address => bool) authorized;
+    mapping (address => bool) internal authorized;
     /// Use external (system provided) price ticker
     bool public usePriceTicker = false;
     /// Price in wei at which exchange buys tokens.
-    uint staticBuyPrice;
+    uint internal staticBuyPrice;
     /// Price in wei at which exchange sells tokens.
-    uint staticSellPrice;
+    uint internal staticSellPrice;
 
-    /// User sold tokens and received wei.
-    event ExchangeSell(address indexed exchange, address indexed who, uint token, uint eth);
-    /// User bought tokens and payed wei.
-    event ExchangeBuy(address indexed exchange, address indexed who, uint token, uint eth);
-    /// On received ethers
-    event ExchangeReceivedEther(address indexed exchange, address indexed sender, uint256 indexed amount);
-    /// On tokens withdraw
-    event ExchangeWithdrawTokens(address indexed exchange, address indexed recipient, uint amount, address indexed by);
-    /// On eth withdraw
-    event ExchangeWithdrawEther(address indexed exchange, address indexed recipient, uint amount, address indexed by);
-    /// On Fee updated
-    event ExchangeFeeUpdated(address indexed exchange, address rewards, uint feeValue, address indexed by);
-    /// On prices updated
-    event ExchangePricesUpdated(address indexed exchange, uint buyPrice, uint sellPrice, bool usePriceTicker, address indexed by);
-    /// On state changed
-    event ExchangeActiveChanged(address indexed exchange, bool isActive, address indexed by);
-    /// On error
-    event Error(address indexed exchange, uint errorCode);
-
-    /// service registry
-    address contractsManager;
 
     /// @notice only authorized account are permitted to call
-    modifier onlyAuthorized() {
+    modifier onlyAuthorized {
         if (msg.sender == contractOwner || authorized[msg.sender]) {
             _;
         }
@@ -101,6 +64,7 @@ contract Exchange is Object {
     /// @return OK if success.
     function init(
         address _contractsManager,
+        address _backend,
         address _asset,
         address _rewards,
         uint _fee)
@@ -109,11 +73,13 @@ contract Exchange is Object {
     returns (uint errorCode)
     {
         require(_contractsManager != 0x0);
+        require(_backend != 0x0);
         require(_asset != 0x0);
         require(address(asset) == 0x0);
 
         asset = Asset(_asset);
         contractsManager = _contractsManager;
+        backendAddress = _backend;
 
         if (OK != setFee(_rewards, _fee)) {
             revert();
@@ -185,7 +151,7 @@ contract Exchange is Object {
             usePriceTicker = _usePriceTicker;
         }
 
-        _emitPricesUpdated(staticBuyPrice, staticSellPrice, usePriceTicker, msg.sender);
+        getEventsHistory().emitPricesUpdated(staticBuyPrice, staticSellPrice, usePriceTicker, msg.sender);
         return OK;
     }
 
@@ -202,7 +168,7 @@ contract Exchange is Object {
     {
         isActive = _active;
 
-        _emitActiveChanged(_active, msg.sender);
+        getEventsHistory().emitActiveChanged(_active, msg.sender);
         return OK;
     }
 
@@ -294,7 +260,7 @@ contract Exchange is Object {
             revert();
         }
 
-        _emitSell(msg.sender, _amount, total);
+        getEventsHistory().emitSell(msg.sender, _amount, total);
         return OK;
     }
 
@@ -328,7 +294,7 @@ contract Exchange is Object {
             revert();
         }
 
-        _emitBuy(msg.sender, _amount, total);
+        getEventsHistory().emitBuy(msg.sender, _amount, total);
         return OK;
     }
 
@@ -354,7 +320,7 @@ contract Exchange is Object {
             revert();
         }
 
-        _emitWithdrawTokens(_recipient, amount, msg.sender);
+        getEventsHistory().emitWithdrawTokens(_recipient, amount, msg.sender);
         return OK;
     }
 
@@ -392,7 +358,7 @@ contract Exchange is Object {
             revert();
         }
 
-        _emitWithdrawEther(_recipient, amount, msg.sender);
+        getEventsHistory().emitWithdrawEther(_recipient, amount, msg.sender);
         return OK;
     }
 
@@ -467,7 +433,7 @@ contract Exchange is Object {
         rewards = _rewards;
         feePercent = _feePercent;
 
-        _emitFeeUpdated(_rewards, _feePercent, msg.sender);
+        getEventsHistory().emitFeeUpdated(_rewards, _feePercent, msg.sender);
         return OK;
     }
 
@@ -488,81 +454,10 @@ contract Exchange is Object {
         return _errorCode;
     }
 
-    function _emitFeeUpdated(address _rewards, uint _feePercent, address _by) internal {
-        getEventsHistory().emitFeeUpdated(_rewards, _feePercent, _by);
-    }
-
-    function _emitPricesUpdated(uint _buyPrice, uint _sellPrice, bool _usePriceTicker, address _by) internal {
-        getEventsHistory().emitPricesUpdated(_buyPrice, _sellPrice, _usePriceTicker, _by);
-    }
-
-    function _emitActiveChanged(bool _isActive, address _by) internal {
-        getEventsHistory().emitActiveChanged(_isActive, _by);
-    }
-
-    function _emitBuy(address _who, uint _token, uint _eth) internal {
-        getEventsHistory().emitBuy(_who, _token, _eth);
-    }
-
-    function _emitSell(address _who, uint _token, uint _eth) internal {
-        getEventsHistory().emitSell(_who, _token, _eth);
-    }
-
-    function _emitWithdrawEther(address _recipient, uint _amount, address _by) internal {
-        getEventsHistory().emitWithdrawEther(_recipient, _amount, _by);
-    }
-
-    function _emitWithdrawTokens(address _recipient, uint _amount, address _by) internal {
-        getEventsHistory().emitWithdrawTokens(_recipient, _amount, _by);
-    }
-
-    function _emitReceivedEther(address _sender, uint _amount) internal {
-        getEventsHistory().emitReceivedEther(_sender, _amount);
-    }
-
-    /* emit* methods are designed to be called only via EventsHistory */
-
-    function emitError(uint _errorCode) public returns (uint) {
-        Error(msg.sender, _errorCode);
-        return _errorCode;
-    }
-
-    function emitFeeUpdated(address _rewards, uint _feePercent, address _by) public {
-        ExchangeFeeUpdated(msg.sender, _rewards, _feePercent, _by);
-    }
-
-    function emitPricesUpdated(uint _buyPrice, uint _sellPrice, bool _usePriceTicker, address _by) public {
-        ExchangePricesUpdated(msg.sender, _buyPrice, _sellPrice, _usePriceTicker, _by);
-    }
-
-    function emitActiveChanged(bool _isActive, address _by) public {
-        ExchangeActiveChanged(msg.sender, _isActive, _by);
-    }
-
-    function emitBuy(address _who, uint _token, uint _eth) public {
-        ExchangeBuy(msg.sender, _who, _token, _eth);
-    }
-
-    function emitSell(address _who, uint _token, uint _eth) public {
-        ExchangeSell(msg.sender, _who, _token, _eth);
-    }
-
-    function emitWithdrawEther(address _recipient, uint _amount, address _by) public {
-        ExchangeWithdrawEther(msg.sender, _recipient, _amount, _by);
-    }
-
-    function emitWithdrawTokens(address _recipient, uint _amount, address _by) public {
-        ExchangeWithdrawTokens(msg.sender, _recipient, _amount, _by);
-    }
-
-    function emitReceivedEther(address _sender, uint _amount) public {
-        ExchangeReceivedEther(msg.sender, _sender, _amount);
-    }
-
     /// @notice Accept all ether to maintain exchange supply.
     function() payable public {
         if (msg.value != 0) {
-            _emitReceivedEther(msg.sender, msg.value);
+            getEventsHistory().emitReceivedEther(msg.sender, msg.value);
         } else {
             revert();
         }

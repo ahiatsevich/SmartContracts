@@ -2,6 +2,7 @@ pragma solidity ^0.4.11;
 
 import '../core/event/MultiEventsHistoryAdapter.sol';
 
+/// @title ExchangeManagerEmitter.
 contract ExchangeManagerEmitter is MultiEventsHistoryAdapter {
     event ExchangeCreated(
         address indexed self,

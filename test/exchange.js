@@ -1,4 +1,8 @@
-const Exchange = artifacts.require("./Exchange.sol");
+const Exchange = artifacts.require("./ExchangeInterface.sol");
+const ExchangeRouter = artifacts.require("./ExchangeRouter.sol");
+const ExchangeBackend = artifacts.require("./ExchangeBackend.sol");
+const ExchangeFactory = artifacts.require("./ExchangeFactory.sol");
+const ExchangeEmitter = artifacts.require("./ExchangeEmitter.sol");
 const FakeCoin = artifacts.require("./FakeCoin.sol");
 const FakeCoin2 = artifacts.require("./FakeCoin2.sol");
 const StorageManager = artifacts.require("./StorageManager.sol");
@@ -45,7 +49,8 @@ contract('Exchange', (accounts) => {
   };
 
   before('Set Coin contract address', async() => {
-      exchange = await Exchange.new();
+      let exchangeRouter = await ExchangeRouter.new(ContractsManager.address, ExchangeBackend.address)
+      exchange = await Exchange.at(exchangeRouter.address)
       let eventsHistory = await MultiEventsHistory.deployed();
 
       await eventsHistory.authorize(exchange.address);
@@ -73,16 +78,16 @@ contract('Exchange', (accounts) => {
   });
 
   it('should receive the right contract address after init() call', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.asset())
       .then((asset) => assert.equal(asset, coin.address));
   });
 
   it('should not be possible to set another contract after first init() call', async() => {
-      await exchange.init(ContractsManager.address, coin.address, coin2.address, Fee);
+      await exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee);
 
       try {
-        await exchange.init(ContractsManager.address, '0x1', coin2.address, Fee)
+        await exchange.init(ContractsManager.address, ExchangeBackend.address, '0x1', coin2.address, Fee)
         assert(false, "didn't throw");
       } catch (error) {
         return utils.ensureException(error);
@@ -93,7 +98,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to init by non-owner', () => {
-    return exchange.init.call(ContractsManager.address, coin.address, coin2.address, Fee, {from: accounts[1]})
+    return exchange.init.call(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee, {from: accounts[1]})
       .then((r) => assert.equal(r, ErrorsEnum.UNAUTHORIZED))
       .then(() => exchange.asset())
       .then((asset) => assert.equal(asset, '0x0000000000000000000000000000000000000000'));
@@ -143,7 +148,7 @@ contract('Exchange', (accounts) => {
 
   it('should not be possible to sell with price > buyPrice', () => {
     let balance;
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => web3.eth.getBalance(accounts[0]))
@@ -156,7 +161,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to sell more than you have', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.sell.call(BALANCE + 1, BUY_PRICE))
@@ -166,7 +171,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to sell tokens if exchange eth balance is less than needed', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.sell.call(BALANCE + 1, BUY_PRICE))
@@ -179,7 +184,7 @@ contract('Exchange', (accounts) => {
   it('should be possible to sell tokens', () => {
     let tokenDecimals = 4;
     let sellAmount = 50 * Math.pow(10, tokenDecimals);
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.sell(sellAmount, BUY_PRICE))
@@ -190,7 +195,7 @@ contract('Exchange', (accounts) => {
 
   it('should not be possible to buy with price < sellPrice', () => {
     let balance;
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.buy.call(1, SELL_PRICE - 1, {value: SELL_PRICE})
@@ -199,7 +204,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to buy if exchange token balance is less than needed', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.buy.call(BALANCE + 1, SELL_PRICE, {value: (BALANCE + 1) * SELL_PRICE})
@@ -208,7 +213,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to buy if msg.value is less than _amount * _price', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.buy.call(1, SELL_PRICE, {value: SELL_PRICE - 1})
@@ -217,7 +222,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to buy if msg.value is greater than _amount * _price', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.buy.call(1, SELL_PRICE, {value: SELL_PRICE + 1})
@@ -226,7 +231,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to buy if _amount * _price overflows', async() => {
-    await exchange.init(ContractsManager.address, coin.address, coin2.address, Fee);
+    await exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee);
     await exchange.setPrices(BUY_PRICE, web3.toBigNumber(2).pow(254), false);
     await exchange.setActive(true);
 
@@ -238,7 +243,7 @@ contract('Exchange', (accounts) => {
 
   it('should buy tokens with msg.value == _amount * _price', () => {
     let buyAmount = 10 * 10000;
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.buy(buyAmount, SELL_PRICE, {value: buyAmount * SELL_PRICE / 10000}))
@@ -248,7 +253,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to withdraw tokens by non-owner', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.withdrawTokens.call(accounts[0], 10, {from: accounts[1]}))
@@ -259,7 +264,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to withdraw if exchange token balance is less than _amount', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.withdrawTokens.call(accounts[0], BALANCE + 1))
@@ -271,13 +276,13 @@ contract('Exchange', (accounts) => {
   it('should withdraw tokens, process fee and fire WithdrawTokens event', () => {
     let withdrawValue = 10;
     let watcher;
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => {
         return exchange.withdrawTokens(accounts[1], withdrawValue);
       })
-      .then((txHash) => eventsHelper.extractEvents(txHash, "ExchangeWithdrawTokens"))
+      .then(async (txHash) => await eventsHelper.findEvent([await ExchangeEmitter.at(exchange.address)], txHash, "ExchangeWithdrawTokens"))
       .then((events) => {
         assert.equal(events.length, 1);
         assert.equal(events[0].args.recipient.valueOf(), accounts[1]);
@@ -290,7 +295,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to withdraw all tokens by non-owner', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.setPrices(BUY_PRICE, SELL_PRICE, false))
       .then(() => exchange.setActive(true))
       .then(() => exchange.withdrawAllTokens.call(accounts[0], {from: accounts[1]}))
@@ -301,14 +306,14 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to withdraw eth by non-owner', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.withdrawEth.call(accounts[0], 10, {from: accounts[1]}))
       .then((r) => assert.equal(r, ErrorsEnum.UNAUTHORIZED))
       .then(() => assertEthBalance(exchange.address, BALANCE_ETH));
   });
   //
   it('should not be possible to withdraw if exchange eth balance is less than _amount', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.withdrawEth.call(accounts[0], BALANCE_ETH + 1))
       .then((r) => assert.equal(r, ErrorsEnum.EXCHANGE_INSUFFICIENT_ETHER_SUPPLY))
       .then(() => assertEthBalance(exchange.address, BALANCE_ETH));
@@ -318,9 +323,9 @@ contract('Exchange', (accounts) => {
     let withdrawValue = 10;
     let withdrawTo = '0x0000000000000000000000000000000000000005';
     let watcher;
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.withdrawEth(withdrawTo, withdrawValue))
-      .then((txHash) => eventsHelper.extractEvents(txHash, "ExchangeWithdrawEther"))
+      .then(async (txHash) => await eventsHelper.findEvent([await ExchangeEmitter.at(exchange.address)], txHash, "ExchangeWithdrawEther"))
       .then((events) => {
         assert.equal(events.length, 1);
         assert.equal(events[0].args.recipient.valueOf(), withdrawTo);
@@ -332,14 +337,14 @@ contract('Exchange', (accounts) => {
   });
 
   it('should not be possible to withdraw all eth by non-owner', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.withdrawAllEth.call(accounts[0], {from: accounts[1]}))
       .then((r) => assert.equal(r, ErrorsEnum.UNAUTHORIZED))
       .then(() => assertEthBalance(exchange.address, BALANCE_ETH));
   });
 
   it('should not be possible to withdraw all by non-owner', () => {
-    return exchange.init(ContractsManager.address, coin.address, coin2.address, Fee)
+    return exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee)
       .then(() => exchange.withdrawAll.call(accounts[0], {from: accounts[1]}))
       .then((r) => assert.equal(r, ErrorsEnum.UNAUTHORIZED))
       .then(() => assertBalance(accounts[0], BALANCE))
@@ -348,7 +353,7 @@ contract('Exchange', (accounts) => {
   });
 
   it('should fail if no price provider in the system', async() => {
-      await exchange.init(ContractsManager.address, coin.address, coin2.address, Fee);
+      await exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee);
       await exchange.setPrices(1, 2, true);
       try {
           await exchange.buyPrice();
@@ -368,7 +373,7 @@ contract('Exchange', (accounts) => {
   it('should use dynamic prices if price provider is enabled', async() => {
       await priceTickerManager.init(ContractsManager.address);
 
-      await exchange.init(ContractsManager.address, coin.address, coin2.address, Fee);
+      await exchange.init(ContractsManager.address, ExchangeBackend.address, coin.address, coin2.address, Fee);
       await exchange.setPrices(BUY_PRICE, SELL_PRICE, false);
 
       assert.isFalse(await exchange.usePriceTicker());
