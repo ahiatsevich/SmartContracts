@@ -2,32 +2,33 @@ pragma solidity ^0.4.11;
 
 // For testing purposes
 contract FakeCoin {
+
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-    mapping(address => uint) public balanceOf;
+    mapping (address => uint) public balanceOf;
 
-    function mint(address _to, uint _value) {
+    function mint(address _to, uint _value) public {
         balanceOf[_to] += _value;
         Transfer(this, _to, _value);
     }
 
-    function totalSupply() constant returns(uint) {
+    function totalSupply() public pure returns (uint) {
         return 0;
     }
-    
-    function symbol() constant returns(string) {
+
+    function symbol() public pure returns (string) {
         return 'FAKE';
     }
-    
-    function decimals() constant returns(uint) {
+
+    function decimals() public pure returns (uint) {
         return 4;
     }
 
-    function transfer(address _to, uint _value) returns(bool) {
+    function transfer(address _to, uint _value) public returns (bool) {
         return transferFrom(msg.sender, _to, _value);
     }
 
-    function transferFrom(address _from, address _to, uint _value) returns(bool) {
+    function transferFrom(address _from, address _to, uint _value) public returns (bool) {
         if (balanceOf[_from] < _value) {
             return false;
         }
@@ -37,13 +38,14 @@ contract FakeCoin {
         return true;
     }
 
-    function balanceEth(address _address) constant returns(uint) {
+    function balanceEth(address _address) public constant returns (uint) {
         return _address.balance;
     }
 
-    function () payable {
-        if(msg.value == 0)
-        throw;
+    function() public payable {
+        if (msg.value == 0) {
+            revert();
+        }
     }
 
 }

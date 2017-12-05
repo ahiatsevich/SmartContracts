@@ -15,11 +15,8 @@ contract AssetDonator {
     address contractManager;
     mapping (address => bool) public timeDonations;
 
-    function init(address _contractManager) {
-        if (_contractManager == 0x0) {
-            throw;
-        }
-
+    function init(address _contractManager) public {
+        require(_contractManager != 0x0);
         contractManager = _contractManager;
     }
 
@@ -29,7 +26,7 @@ contract AssetDonator {
     *
     *  @return success or not
     */
-    function sendTime() returns (bool) {
+    function sendTime() public returns (bool) {
         if (timeDonations[msg.sender]) {
            return false;
         }

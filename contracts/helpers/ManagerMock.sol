@@ -3,11 +3,14 @@ pragma solidity ^0.4.11;
 contract ManagerMock {
     bool denied;
 
-    function deny() {
+    function deny() public {
         denied = true;
     }
 
-    function isAllowed(address _actor, bytes32 _role) constant returns(bool) {
+    function isAllowed(address _actor, bytes32 _role) public returns (bool) {
+        _actor == 0x0;
+        _role.length == 0;
+
         if (denied) {
             denied = false;
             return false;
@@ -15,7 +18,8 @@ contract ManagerMock {
         return true;
     }
 
-    function hasAccess(address _actor) constant returns(bool) {
+    function hasAccess(address _actor) public pure returns(bool) {
+        _actor == 0x0;
         return true;
     }
 }
