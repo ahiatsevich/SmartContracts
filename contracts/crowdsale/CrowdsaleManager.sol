@@ -21,10 +21,10 @@ contract CrowdsaleManager is CrowdsaleManagerEmitter, BaseManager {
     uint constant ERROR_CROWDFUNDING_DOES_NOT_EXIST = 3003;
 
     StorageInterface.AddressesSet compains;
-    StorageInterface.Bytes32AddressMapping factories;
 
-    function checkOnlyTokenExtension() private constant returns (bool) {
-        return TokenExtensionRegistry(lookupManager("AssetsManager")).containsTokenExtension(msg.sender);
+    modifier onlyAssetAuthorizedContract() {
+        if (!TokenExtensionRegistry(lookupManager("AssetsManager")).containsTokenExtension(msg.sender)) return;
+        _;
     }
 
     /**
@@ -32,7 +32,6 @@ contract CrowdsaleManager is CrowdsaleManagerEmitter, BaseManager {
     */
     function CrowdsaleManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) {
         compains.init('compains');
-        factories.init("factories");
     }
 
     /**
@@ -47,11 +46,9 @@ contract CrowdsaleManager is CrowdsaleManagerEmitter, BaseManager {
     /**
     *  Creates Crowdsale with a type produced by CrowdsaleFactory with given _factoryName.
     */
-    function createCrowdsale(address _creator, bytes32 _symbol, bytes32 _factoryName) returns (address, uint) {
-        if (!checkOnlyTokenExtension()) {
-            return (0x0, _emitError(UNAUTHORIZED));
-        }
-
+    function createCrowdsale(address _creator, bytes32 _symbol, bytes32 _factoryName)
+    onlyAssetAuthorizedContract
+    returns (address, uint) {
         if (!lookupAssetsManager().isAssetOwner(_symbol, _creator)) {
             return (0x0, _emitError(ERROR_CROWDFUNDING_NOT_ASSET_OWNER));
         }
@@ -71,11 +68,7 @@ contract CrowdsaleManager is CrowdsaleManagerEmitter, BaseManager {
     /**
     *  Deletes Crowdsale if It is allowed.
     */
-    function deleteCrowdsale(address crowdsale) returns (uint) {
-        if (!checkOnlyTokenExtension()) {
-            return _emitError(UNAUTHORIZED);
-        }
-
+    function deleteCrowdsale(address crowdsale) onlyAssetAuthorizedContract returns (uint) {
         if (!lookupAssetsManager().isAssetOwner(BaseCrowdsale(crowdsale).getSymbol(), crowdsale)) {
             return _emitError(ERROR_CROWDFUNDING_NOT_ASSET_OWNER);
         }

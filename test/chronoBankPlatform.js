@@ -1540,20 +1540,20 @@ context("with one CBE key", function(){
     return chronoBankPlatform.trust(trustee).then(function() {
       return chronoBankPlatform.distrust.call(untrustee);
     }).then(function(result) {
-      assert.equal(result, ErrorsEnum.CHRONOBANK_PLATFORM_ACCESS_DENIED_ONLY_TRUSTED);
+      assert.equal(result, ErrorsEnum.UNAUTHORIZED);
     });
   });
   it('should not be possible to distrust by missing holder', function() {
     var holder = accounts[0];
     var untrustee = accounts[1];
     return chronoBankPlatform.distrust.call(untrustee).then(function(result) {
-      assert.equal(result, ErrorsEnum.CHRONOBANK_PLATFORM_ACCESS_DENIED_ONLY_TRUSTED);
+      assert.equal(result, ErrorsEnum.UNAUTHORIZED);
     });
   });
   it('should not be possible to distrust oneself', function() {
     var holder = accounts[0];
     return chronoBankPlatform.distrust.call(holder).then(function(result) {
-      assert.equal(result, ErrorsEnum.CHRONOBANK_PLATFORM_ACCESS_DENIED_ONLY_TRUSTED);
+      assert.equal(result, ErrorsEnum.UNAUTHORIZED);
     });
   });
   it('should be possible to distrust a trusted address', function() {
@@ -1622,7 +1622,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.trust(trustee).then(function() {
       return chronoBankPlatform.recover.call(holder, recoverTo, {from: untrustee});
     }).then(function(result) {
-      assert.equal(result, ErrorsEnum.CHRONOBANK_PLATFORM_ACCESS_DENIED_ONLY_TRUSTED);
+      assert.equal(result, ErrorsEnum.UNAUTHORIZED);
     });
   });
   it('should not be possible to recover from missing holder', function() {
@@ -1630,7 +1630,7 @@ context("with one CBE key", function(){
     var untrustee = accounts[2];
     var recoverTo = accounts[3];
     return chronoBankPlatform.recover.call(holder, recoverTo, {from: untrustee}).then(function(result) {
-      assert.equal(result, ErrorsEnum.CHRONOBANK_PLATFORM_ACCESS_DENIED_ONLY_TRUSTED);
+      assert.equal(result, ErrorsEnum.UNAUTHORIZED);
     });
   });
   it('should not be possible to recover by oneself', function() {
@@ -1640,7 +1640,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.trust(trustee).then(function() {
       return chronoBankPlatform.recover.call(holder, recoverTo, {from: holder});
     }).then(function(result) {
-        assert.equal(result, ErrorsEnum.CHRONOBANK_PLATFORM_ACCESS_DENIED_ONLY_TRUSTED);
+        assert.equal(result, ErrorsEnum.UNAUTHORIZED);
     });
   });
   it('should not be possible to recover to oneself', function() {
@@ -2177,7 +2177,7 @@ context("with one CBE key", function(){
       assert.equal(result.valueOf(), value);
     });
   });
-  it('should be possible to override allowance value with non 0 value', function() {
+  it('should not be possible to override allowance value with non 0 value', function() {
     var holder = accounts[0];
     var spender = accounts[1];
     var value = 1000;
@@ -2188,7 +2188,7 @@ context("with one CBE key", function(){
     }).then(function() {
       return chronoBankPlatform.allowance.call(holder, spender, SYMBOL);
     }).then(function(result) {
-      assert.equal(result.valueOf(), value);
+      assert.equal(result.valueOf(), 100);
     });
   });
   it('should not affect balance when setting allowance', function() {

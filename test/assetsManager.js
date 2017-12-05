@@ -4,7 +4,8 @@ const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
 const ChronoBankPlatform = artifacts.require('./ChronoBankPlatform.sol')
-const TokenManagementExtension = artifacts.require("./TokenManagementExtension.sol")
+const TokenManagementInterface = artifacts.require("./TokenManagementInterface.sol")
+const PlatformTokenExtensionGatewayManagerEmitter = artifacts.require("./PlatformTokenExtensionGatewayManagerEmitter.sol")
 
 contract('Assets Manager', function(accounts) {
     const contractOwner = accounts[0]
@@ -51,14 +52,10 @@ contract('Assets Manager', function(accounts) {
             let platform
 
             it("prepare", async () => {
-                let successRequestPlatformResultCode = await Setup.platformsManager.createPlatform.call({ from: owner })
-                assert.equal(successRequestPlatformResultCode, ErrorsEnum.OK)
-
                 let successRequestPlatfortTx = await Setup.platformsManager.createPlatform({ from: owner })
                 let event = eventsHelper.extractEvents(successRequestPlatfortTx, "PlatformRequested")[0]
                 assert.isDefined(event)
                 platform = await ChronoBankPlatform.at(event.args.platform)
-                await platform.claimContractOwnership({ from: owner })
                 platformToId = event.args.platformId
                 assert.notEqual(event.args.tokenExtension, zeroAddress)
             })
@@ -89,13 +86,14 @@ contract('Assets Manager', function(accounts) {
                 let desc = 'My Test Token'
 
                 let tokenExtensionAddress = await Setup.assetsManager.getTokenExtension.call(platform.address)
-                let tokenExtension = await TokenManagementExtension.at(tokenExtensionAddress)
-                let assetResultCode = await tokenExtension.createAsset.call(symbol, desc, "", 0, 8, true, true, { from: owner })
+                let tokenExtension = await TokenManagementInterface.at(tokenExtensionAddress)
+                let tokenEmitter = await PlatformTokenExtensionGatewayManagerEmitter.at(tokenExtensionAddress)
+                let assetResultCode = await tokenExtension.createAssetWithoutFee.call(symbol, desc, "", 0, 8, true, 0x0, { from: owner })
                 assert.equal(assetResultCode, ErrorsEnum.OK)
 
-                let assetTx = await tokenExtension.createAsset(symbol, desc, "", 0, 8, true, true, { from: owner })
-                let event = eventsHelper.extractEvents(assetTx, "AssetCreated")[0]
-                assert.isDefined(event)
+                let assetTx = await tokenExtension.createAssetWithoutFee(symbol, desc, "", 0, 8, true, 0x0, { from: owner })
+                let logs = await eventsHelper.extractReceiptLogs(assetTx, tokenEmitter.AssetCreated())
+                assert.isDefined(logs[0])
 
                 let assetsCount = await Setup.assetsManager.getAssetsForOwnerCount.call(platform.address, owner)
                 assert.equal(assetsCount, 1)
@@ -111,6 +109,16 @@ contract('Assets Manager', function(accounts) {
             it("prepare")
             it("should recognize an user added through platform as an asset owner in AssetsManager")
             it("should remove an asset owner from a platform and show it in AssetsManager")
+        })
+
+        context("statistics", function () {
+            it("should have 1 platform count for a user")
+            it("should have 2 platforms after creating a new platform")
+            it("should have 1 total token number from two platforms")
+            it("should have 3 total token number after creating 2 tokens on different platforms")
+            it("should have 2 managers for LHT token")
+            it("should have 1 manager for newly created token")
+            it("should have 2 managers in total from all platforms")
         })
     })
 })

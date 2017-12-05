@@ -437,7 +437,7 @@ contract('ChronoBankAssetWithFee', function(accounts) {
       assert.equal(result.valueOf(), value);
     });
   });
-  it('should be possible to override allowance value with non 0 value', function() {
+  it('should not be possible to override allowance value with non 0 value', function() {
     var holder = accounts[0];
     var spender = accounts[1];
     var value = 1000;
@@ -448,7 +448,7 @@ contract('ChronoBankAssetWithFee', function(accounts) {
     }).then(function() {
       return chronoBankAssetProxy.allowance(holder, spender);
     }).then(function(result) {
-      assert.equal(result.valueOf(), value);
+      assert.equal(result.valueOf(), 100);
     });
   });
   it('should not affect balance when setting allowance', function() {

@@ -72,7 +72,7 @@ contract Rewards is Deposits, RewardsEmitter {
     StorageInterface.UIntUIntMapping shareholdersCount;
     StorageInterface.UIntAddressUIntMapping assetBalances;
     StorageInterface.UIntAddressAddressBoolMapping calculated;
-    StorageInterface.UInt targetPlatformId;
+    StorageInterface.Address targetPlatform;
     StorageInterface.Address walletStorage;
 
     function Rewards(Storage _store, bytes32 _crate) Deposits(_store, _crate) {
@@ -88,8 +88,8 @@ contract Rewards is Deposits, RewardsEmitter {
         assetBalances.init('assetBalances');
         calculated.init('calculated');
         shares.init('shares');
-        targetPlatformId.init('targetPlatformId');
-        walletStorage.init("walletStorage");
+        targetPlatform.init('targetPlatform');
+        walletStorage.init("rewardsWalletStorage");
     }
 
     /**
@@ -103,11 +103,11 @@ contract Rewards is Deposits, RewardsEmitter {
      *
      * @return result code, @see Errors
      */
-    function init(address _contractsManager, address _wallet, uint _targetPlatformId, uint _closeIntervalDays) onlyContractOwner returns (uint) {
+    function init(address _contractsManager, address _wallet, address _targetPlatform, uint _closeIntervalDays) onlyContractOwner returns (uint) {
         uint result = BaseManager.init(_contractsManager, "Rewards");
 
         store.set(closeInterval, _closeIntervalDays);
-        store.set(targetPlatformId, _targetPlatformId);
+        store.set(targetPlatform, _targetPlatform);
         store.set(walletStorage, _wallet);
 
         // do not update default values if reinitialization
@@ -161,15 +161,14 @@ contract Rewards is Deposits, RewardsEmitter {
     }
 
     function getAssets() constant returns(address[] result) {
-        PlatformsManagerInterface platformsManager = PlatformsManagerInterface(lookupManager("PlatformsManager"));
-        address targetPlatform = platformsManager.getPlatformWithId(store.get(targetPlatformId));
+        address _targetPlatform = store.get(targetPlatform);
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));
         address chronoMintWallet = WalletBackedManagerInterface(lookupManager("LOCManager")).wallet();
-        uint assetsCount = assetsManager.getAssetsForOwnerCount(targetPlatform, chronoMintWallet);
+        uint assetsCount = assetsManager.getAssetsForOwnerCount(_targetPlatform, chronoMintWallet);
         result = new address[](assetsCount);
         bytes32 symbol;
         for (uint idx = 0; idx < assetsCount; ++idx) {
-            symbol = assetsManager.getAssetForOwnerAtIndex(targetPlatform, chronoMintWallet, idx);
+            symbol = assetsManager.getAssetForOwnerAtIndex(_targetPlatform, chronoMintWallet, idx);
             result[idx] = assetsManager.getAssetBySymbol(symbol);
         }
     }
@@ -310,11 +309,11 @@ contract Rewards is Deposits, RewardsEmitter {
      * @return result code.
      */
     function withdrawAllRewardsTotal() returns (uint) {
-        address[] memory assets = getAssets();
-        for (uint i=0; i < assets.length; i++) {
-            uint rewards = rewardsFor(assets[i], msg.sender);
-            if (rewards > 0) {
-                uint result = withdrawRewardFor(assets[i], msg.sender, rewards);
+        address[] memory _assets = getAssets();
+        for (uint i=0; i < _assets.length; i++) {
+            uint _rewards = rewardsFor(_assets[i], msg.sender);
+            if (_rewards > 0) {
+                uint result = withdrawRewardFor(_assets[i], msg.sender, _rewards);
                 if (OK != result) {
                     return result;
                 }
@@ -383,7 +382,7 @@ contract Rewards is Deposits, RewardsEmitter {
         uint endBalance = ERC20Interface(_asset).balanceOf(_wallet);
         uint diff = startBalance - endBalance;
         if (rewardsFor(_asset, _address) < diff) {
-            throw;
+            revert();
         }
 
         store.set(rewards,_asset,_address,store.get(rewards,_asset,_address) - diff);
@@ -522,6 +521,6 @@ contract Rewards is Deposits, RewardsEmitter {
     }
 
     function() {
-        throw;
+        revert();
     }
 }

@@ -47,8 +47,8 @@ contract Owned {
      *
      * @return success.
      */
-    function changeContractOwnership(address _to) onlyContractOwner() returns(bool) {
-        if (_to  == 0x0) {
+    function changeContractOwnership(address _to) onlyContractOwner public returns (bool) {
+        if (_to == 0x0) {
             return false;
         }
 
@@ -63,7 +63,7 @@ contract Owned {
      *
      * @return success.
      */
-    function claimContractOwnership() returns(bool) {
+    function claimContractOwnership() public returns (bool) {
         if (pendingContractOwner != msg.sender) {
             return false;
         }
@@ -71,6 +71,26 @@ contract Owned {
         contractOwner = pendingContractOwner;
         delete pendingContractOwner;
 
+        return true;
+    }
+
+    /**
+    * @dev Direct ownership pass without change/claim pattern. Can be invoked only by current contract owner
+    *
+    * @param _to the next contract owner
+    *
+    * @return `true` if success, `false` otherwise
+    */
+    function transferContractOwnership(address _to) onlyContractOwner public returns (bool) {
+        if (_to == 0x0) {
+            return false;
+        }
+
+        if (pendingContractOwner != 0x0) {
+            pendingContractOwner = 0x0;
+        }
+
+        contractOwner = _to;
         return true;
     }
 }

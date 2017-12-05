@@ -24,6 +24,11 @@ contract TimeHolderEmmiter is MultiEventsHistoryAdapter {
     event ListenerRemoved(address listener);
 
     /**
+    * Fee for Feature is taken
+    */
+    event FeatureFeeTaken(address from, address to, uint amount);
+
+    /**
     *  Something went wrong.
     */
     event Error(address indexed self, uint errorCode);
@@ -42,6 +47,10 @@ contract TimeHolderEmmiter is MultiEventsHistoryAdapter {
 
     function emitListenerRemoved(address listener) {
         ListenerRemoved(listener);
+    }
+
+    function emitFeatureFeeTaken(address _from, address _to, uint _amount) {
+        FeatureFeeTaken(_from, _to, _amount);
     }
 
     function emitError(uint error) {

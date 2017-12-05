@@ -3,7 +3,6 @@ var FakeCoin2 = artifacts.require("./FakeCoin2.sol");
 var FakeCoin3 = artifacts.require("./FakeCoin3.sol");
 var ManagerMock = artifacts.require("./ManagerMock.sol");
 var AssetsManagerMock = artifacts.require("./AssetsManagerMock.sol");
-var PlatformsManagerMock = artifacts.require("./PlatformsManagerMock.sol")
 var Stub = artifacts.require("./helpers/Stub.sol");
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
 var KrakenPriceTicker = artifacts.require("./KrakenPriceTicker.sol");
@@ -22,7 +21,6 @@ module.exports = function(deployer,network) {
         .then(() => deployer.deploy(ManagerMock))
         .then(() => deployer.deploy(Clock))
         .then(() => deployer.deploy(AssetsManagerMock))
-        .then(() => deployer.deploy(PlatformsManagerMock))
         .then(() => StorageManager.deployed())
         .then(_storageManager => storageManager = _storageManager)
         .then(() => storageManager.giveAccess(AssetsManagerMock.address, 'AssetsManager'))

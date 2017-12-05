@@ -9,8 +9,10 @@ contract RevokableAssetProxyInterface {
 }
 
 contract TokenManagementInterface {
-    address public platform;
-    function createAsset(bytes32 symbol, string _name, string _description, uint _value, uint8 _decimals, bool _isMint, bool _withFee) returns (uint);
+    function platform() constant returns (address);
+
+    function createAssetWithoutFee(bytes32 _symbol, string _name, string _description, uint _value, uint8 _decimals, bool _isMint, bytes32 _tokenImageIpfsHash) returns (uint);
+    function createAssetWithFee(bytes32 _symbol, string _name, string _description, uint _value, uint8 _decimals, bool _isMint, address _feeAddress, uint32 _feePercent, bytes32 _tokenImageIpfsHash) returns (uint);
 
     function getAssetOwnershipManager() constant returns (address);
     function getReissueAssetProxy() constant returns (ReissuableAssetProxyInterface);

@@ -25,6 +25,8 @@ const StorageManager = artifacts.require('StorageManager.sol')
 const VoteActor = artifacts.require("./VoteActor.sol");
 const PollManager = artifacts.require("./PollManager.sol");
 const PollDetails = artifacts.require("./PollDetails.sol");
+const PlatformTokenExtensionGatewayManager = artifacts.require('./PlatformTokenExtensionGatewayManager.sol')
+const AssetOwnershipDelegateResolver = artifacts.require('./AssetOwnershipDelegateResolver.sol')
 //const CrowdsaleManager = artifacts.require("./CrowdsaleManager.sol");
 
 const contractTypes = {
@@ -41,7 +43,9 @@ const contractTypes = {
   CrowdsaleManager: "CrowdsaleManager",
   VotingActor: "VoteActor",
   VotingDetails: "PollDetails",
-  CrowdsaleManager: "CrowdsaleManager"
+  CrowdsaleManager: "CrowdsaleManager",
+  TokenExtensionGateway: "TokenExtensionGateway",
+  AssetOwnershipResolver: "AssetOwnershipResolver"
 }
 
 let storage
@@ -70,6 +74,8 @@ let chronoBankAssetWithFeeProxy
 let multiEventsHistory
 let storageManager
 let crowdsaleManager
+let tokenExtensionGateway
+let assetOwnershipDelegateResolver
 
 let accounts
 let params
@@ -122,7 +128,9 @@ var setup = function (callback) {
       TimeHolder.deployed(),
       TimeHolderWallet.deployed(),
       MultiEventsHistory.deployed(),
-      StorageManager.deployed()
+      StorageManager.deployed(),
+      PlatformTokenExtensionGatewayManager.deployed(),
+      AssetOwnershipDelegateResolver.deployed()
       //CrowdsaleManager.deployed()
     ])
   }).then((instances) => {
@@ -151,7 +159,9 @@ var setup = function (callback) {
       timeHolder,
       timeHolderWallet,
       multiEventsHistory,
-      storageManager
+      storageManager,
+      tokenExtensionGateway,
+      assetOwnershipDelegateResolver
       //crowdsaleManager
     ] = instances
   }).then(() => {
@@ -179,6 +189,9 @@ var setup = function (callback) {
     module.exports.vote = { manager: pollManager, details: pollDetails, actor: voteActor }
     module.exports.multiEventsHistory = multiEventsHistory
     module.exports.storageManager = storageManager
+    module.exports.tokenExtensionGateway = tokenExtensionGateway
+    module.exports.assetOwnershipResolver = assetOwnershipDelegateResolver
+
     //module.exports.crowdsaleManager = crowdsaleManager
   }).then(() => {
     callback()

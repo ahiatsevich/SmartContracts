@@ -10,5 +10,5 @@ contract TimeHolderInterface {
     function shareholdersCount() constant returns (uint);
     function totalSupply() constant returns(uint);
     function depositBalance(address _address) constant returns(uint);
-
+    function takeFeatureFee(address _account, uint _amount) returns (uint resultCode);
 }

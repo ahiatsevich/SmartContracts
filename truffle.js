@@ -46,4 +46,3 @@ networks: {
   },
   migrations_directory: './migrations'
 }
-

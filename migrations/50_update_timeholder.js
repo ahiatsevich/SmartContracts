@@ -8,7 +8,7 @@ const ERC20Interface = artifacts.require('ERC20Interface.sol')
 const ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
 const TimeHolderWallet = artifacts.require('./TimeHolderWallet.sol')
 
-module.exports = function(deployer, network) {
+module.exports = function(deployer, network, accounts) {
       deployer
       .then(() => {
           if (!TimeHolderWallet.isDeployed()) {
@@ -32,7 +32,7 @@ module.exports = function(deployer, network) {
       .then(() => storageManager.giveAccess(updatedTimeHolder.address, 'Deposits'))
       .then(() => ERC20Manager.deployed())
       .then(_erc20Manager => _erc20Manager.getTokenAddressBySymbol.call("TIME"))
-      .then(_timeAddress => updatedTimeHolder.init(ContractsManager.address, _timeAddress, TimeHolderWallet.address))
+      .then(_timeAddress => updatedTimeHolder.init(ContractsManager.address, _timeAddress, TimeHolderWallet.address, accounts[0]))
       .then(() => MultiEventsHistory.deployed())
       .then(_history => _history.authorize(updatedTimeHolder.address))
       .then(() => {

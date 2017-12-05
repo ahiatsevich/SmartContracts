@@ -14,7 +14,7 @@ contract ProxyFactory {
     function createAssetWithFee(address owner) returns(address) {
         ChronoBankAssetWithFee asset;
         asset = new ChronoBankAssetWithFee();
-        asset.changeContractOwnership(owner);
+        asset.transferContractOwnership(owner);
         return asset;
     }
 
@@ -24,6 +24,6 @@ contract ProxyFactory {
     }
 
     function() {
-        throw;
+        revert();
     }
 }

@@ -7,5 +7,5 @@ contract ChronoBankAssetProxyInterface {
     function __approve(address _spender, uint _value, address _sender) returns(bool);    
     function getLatestVersion() returns(address);
     function init(address _chronoBankPlatform, string _symbol, string _name);
-    function proposeUpgrade(address _newVersion);
+    function proposeUpgrade(address _newVersion) returns (bool);
 }

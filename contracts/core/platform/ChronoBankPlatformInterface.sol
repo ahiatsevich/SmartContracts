@@ -1,5 +1,6 @@
 pragma solidity ^0.4.11;
 
+
 contract ChronoBankPlatformInterface {
     mapping(bytes32 => address) public proxies;
 
@@ -19,6 +20,7 @@ contract ChronoBankPlatformInterface {
     function proxyTransferFromWithReference(address _from, address _to, uint _value, bytes32 _symbol, string _reference, address _sender) returns(uint errorCode);
     function proxyApprove(address _spender, uint _value, bytes32 _symbol, address _sender) returns(uint errorCode);
     function issueAsset(bytes32 _symbol, uint _value, string _name, string _description, uint8 _baseUnit, bool _isReissuable) returns(uint errorCode);
+    function issueAsset(bytes32 _symbol, uint _value, string _name, string _description, uint8 _baseUnit, bool _isReissuable, address _account) returns(uint errorCode);
     function reissueAsset(bytes32 _symbol, uint _value) returns(uint errorCode);
     function revokeAsset(bytes32 _symbol, uint _value) returns(uint errorCode);
     function isReissuable(bytes32 _symbol) returns(bool);

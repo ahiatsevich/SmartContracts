@@ -15,6 +15,12 @@ contract MultiEventsHistory is Object {
     // Authorized calling contracts.
     mapping(address => bool) public isAuthorized;
 
+    modifier onlyAuthorized() {
+        if(isAuthorized[msg.sender] || contractOwner == msg.sender) {
+            _;
+        }
+    }
+
     /**
      * Authorize new caller contract.
      *
@@ -22,7 +28,7 @@ contract MultiEventsHistory is Object {
      *
      * @return success.
      */
-    function authorize(address _caller) onlyContractOwner() returns(bool) {
+    function authorize(address _caller) onlyAuthorized() returns(bool) {
         if (isAuthorized[_caller]) {
             return false;
         }
@@ -35,7 +41,7 @@ contract MultiEventsHistory is Object {
      *
      * @param _caller address of the caller.
      */
-    function reject(address _caller) onlyContractOwner() {
+    function reject(address _caller) onlyAuthorized() {
         delete isAuthorized[_caller];
     }
 
@@ -54,7 +60,7 @@ contract MultiEventsHistory is Object {
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Recursive Call: safe, all changes already made.
         if (!msg.sender.delegatecall(msg.data)) {
-            throw;
+            revert();
         }
     }
 }

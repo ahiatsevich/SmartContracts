@@ -3,7 +3,6 @@ const ChronoBankAsset = artifacts.require("./ChronoBankAsset.sol");
 const ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
 const ChronoBankAssetWithFeeProxy = artifacts.require("./ChronoBankAssetWithFeeProxy.sol");
 const AssetsManager = artifacts.require("./AssetsManager.sol");
-const TokenManagementExtension = artifacts.require('./TokenManagementExtension.sol')
 const PlatformsManager = artifacts.require('./PlatformsManager.sol')
 const OwnedInterface = artifacts.require('./OwnedInterface')
 const Rewards = artifacts.require("./Rewards.sol");

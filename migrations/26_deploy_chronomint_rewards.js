@@ -19,12 +19,9 @@ module.exports = function (deployer, network) {
     .then(() => StorageManager.deployed())
     .then(_storageManager => _storageManager.giveAccess(Rewards.address, "Deposits"))
     .then(() => Rewards.deployed())
-    .then(_manager => manager = _manager)
-    .then(() => PlatformsManager.deployed())
-    .then(_platformsManager => _platformsManager.getIdForPlatform.call(ChronoBankPlatform.address))
-    .then(_platformId => manager.init(ContractsManager.address, RewardsWallet.address, _platformId, 0))
+    .then(_manager => _manager.init(ContractsManager.address, RewardsWallet.address, ChronoBankPlatform.address, 0))
     .then(() => MultiEventsHistory.deployed())
-    .then(_history => _history.authorize(manager.address))
+    .then(_history => _history.authorize(Rewards.address))
 
     .then(() => console.log("[MIGRATION] [26] Rewards: #done"))
 }

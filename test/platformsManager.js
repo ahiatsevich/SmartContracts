@@ -3,6 +3,7 @@ const eventsHelper = require('./helpers/eventsHelper')
 const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
 const ChronoBankPlatform = artifacts.require("./ChronoBankPlatform.sol")
+const TokenManagementInterface = artifacts.require('./TokenManagementInterface.sol')
 
 contract("PlatformsManager", function (accounts) {
     const contractOwner = accounts[0]
@@ -16,17 +17,14 @@ contract("PlatformsManager", function (accounts) {
     const createPlatform = async (platformOwner) => {
         let createdPlatform = await ChronoBankPlatform.new({ from: platformOwner })
         await createdPlatform.setupEventsHistory(Setup.multiEventsHistory.address, { from: platformOwner })
+        await createdPlatform.setupEventsAdmin(Setup.platformsManager.address, { from: platformOwner })
         await Setup.multiEventsHistory.authorize(createdPlatform.address, { from: systemOwner })
         return createdPlatform
     }
 
     const getAllPlatformsForUser = async (user) => {
-        var platforms = []
-        var platformsCount = await Setup.platformsManager.getPlatformsForUserCount.call(user)
-        for (var platformsIdx = 0; platformsIdx < platformsCount; ++platformsIdx) {
-            platforms.push(await Setup.platformsManager.getPlatformForUserAtIndex.call(user, platformsIdx))
-        }
-        return platforms
+        var platformsMetas = await Setup.platformsManager.getPlatformsMetadataForUser.call(user)
+        return platformsMetas
     }
 
     before("setup", function(done) {
@@ -54,7 +52,6 @@ contract("PlatformsManager", function (accounts) {
             assert.isDefined(secondCreatePlatformEvent)
 
             assert.notEqual(createPlatformEvent.args.platform, secondCreatePlatformEvent.args.platform)
-            assert.notEqual(createPlatformEvent.args.platformId.toNumber(), secondCreatePlatformEvent.args.platformId.toNumber())
         })
 
         it("revert", reverter.revert)
@@ -63,7 +60,7 @@ contract("PlatformsManager", function (accounts) {
             let emptyPlatformsCount = await Setup.platformsManager.getPlatformsForUserCount.call(owner)
             assert.equal(emptyPlatformsCount, 0)
 
-            let createPlatformTx = await Setup.platformsManager.createPlatform({ from: owner })
+            let createPlatformTx = await Setup.platformsManager.createPlatform({from: owner })
             let createPlatformEvent = eventsHelper.extractEvents(createPlatformTx, "PlatformRequested")[0]
             assert.isDefined(createPlatformEvent)
             assert.notEqual(createPlatformEvent.args.tokenExtension, 0x0)
@@ -82,23 +79,26 @@ contract("PlatformsManager", function (accounts) {
         let owner = owner1
         var platform
 
-        it("should be able to attach a platform that is not registered by contract (PlatformsManager) owner", async () => {
+        it("should be able to attach a platform that is not registered by platform owner", async () => {
             platform = await createPlatform(owner)
-            let attachPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
+            let attachPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address,  { from: owner })
             assert.equal(attachPlatformResultCode, ErrorsEnum.OK)
         })
 
         it("should not be able to attach a platform by non-contract (PlatformsManager) owner", async () => {
-            let attachPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: owner })
+            let attachPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
             assert.equal(attachPlatformResultCode, ErrorsEnum.UNAUTHORIZED)
         })
 
-        it("should not be able to attach a platform that is already attached", async () => {
-            let attachPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
-            assert.equal(attachPlatformResultCode, ErrorsEnum.OK)
-            await Setup.platformsManager.attachPlatform(platform.address, { from: systemOwner })
+        it("revert", reverter.revert)
 
-            let failedPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
+        it("should not be able to attach a platform that is already attached", async () => {
+            platform = await createPlatform(owner)
+            let attachPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: owner })
+            assert.equal(attachPlatformResultCode, ErrorsEnum.OK)
+            await Setup.platformsManager.attachPlatform(platform.address, { from: owner })
+
+            let failedPlatformResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: owner })
             assert.equal(failedPlatformResultCode, ErrorsEnum.PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS)
         })
 
@@ -117,9 +117,9 @@ contract("PlatformsManager", function (accounts) {
         })
 
         it("should not be able to detach a platform by non-owner of a platform", async () => {
-            let successAttachResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
+            let successAttachResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: owner })
             assert.equal(successAttachResultCode, ErrorsEnum.OK)
-            await Setup.platformsManager.attachPlatform(platform.address, { from: systemOwner })
+            await Setup.platformsManager.attachPlatform(platform.address, { from: owner })
 
             let failedDetachResultCode = await Setup.platformsManager.detachPlatform.call(platform.address, { from: nonOwner })
             assert.equal(failedDetachResultCode, ErrorsEnum.UNAUTHORIZED)
@@ -138,60 +138,6 @@ contract("PlatformsManager", function (accounts) {
         it("revert", reverter.revert)
     })
 
-    context("replace platform with another one (update)", function () {
-        let owner = owner1
-        let otherOwner = owner2
-        let attachedPlatform
-        let freePlatform
-
-        it("prepare", async () => {
-            attachedPlatform = await createPlatform(owner)
-            let attachPlatformTx = await Setup.platformsManager.attachPlatform(attachedPlatform.address, { from: systemOwner })
-            assert.isDefined(eventsHelper.extractEvents(attachPlatformTx, "PlatformAttached")[0])
-
-            freePlatform = await createPlatform(owner)
-        })
-
-
-        it("should not be allowed to replace platforms from different owners", async () => {
-            let otherOwnerPlatform = await createPlatform(otherOwner)
-            let failedReplaceResultCode = await Setup.platformsManager.replacePlatform.call(attachedPlatform.address, otherOwnerPlatform.address, { from: owner })
-            assert.equal(failedReplaceResultCode, ErrorsEnum.UNAUTHORIZED)
-        })
-
-        it("should not be allowed to replace a platform that doesn't exist in a registry", async () => {
-            let failedReplaceResultCode = await Setup.platformsManager.replacePlatform.call(freePlatform.address, attachedPlatform.address, { from: owner })
-            assert.equal(failedReplaceResultCode, ErrorsEnum.PLATFORMS_PLATFORM_DOES_NOT_EXIST)
-        })
-
-        it("should not allow a contract owner to replace non-owned platforms", async () => {
-            let failedReplaceResultCode = await Setup.platformsManager.replacePlatform.call(attachedPlatform.address, freePlatform.address, { from: systemOwner })
-            assert.equal(failedReplaceResultCode, ErrorsEnum.UNAUTHORIZED)
-        })
-
-        it("should be allowed by platforms' owner", async () => {
-            let attachedPlatformId = await Setup.platformsManager.getIdForPlatform.call(attachedPlatform.address)
-            let successReplaceResultCode = await Setup.platformsManager.replacePlatform.call(attachedPlatform.address, freePlatform.address, { from: owner })
-
-            assert.equal(successReplaceResultCode, ErrorsEnum.OK)
-
-            let successReplaceTx = await Setup.platformsManager.replacePlatform(attachedPlatform.address, freePlatform.address, { from: owner })
-            let event = eventsHelper.extractEvents(successReplaceTx, "PlatformReplaced")[0]
-            assert.isDefined(event)
-            assert.equal(event.args.fromPlatform, attachedPlatform.address)
-            assert.equal(event.args.toPlatform, freePlatform.address)
-            assert.equal(attachedPlatformId.toNumber(), event.args.platformId.toNumber())
-
-            let freePlatformId = await Setup.platformsManager.getIdForPlatform.call(freePlatform.address)
-            assert.equal(attachedPlatformId.toNumber(), freePlatformId.toNumber())
-
-            let newAttachedPlatformId = await Setup.platformsManager.getIdForPlatform.call(attachedPlatform.address)
-            assert.equal(newAttachedPlatformId.toNumber(), 0)
-        })
-
-        it("revert", reverter.revert)
-    })
-
     context("update platform ownership", function () {
         let owner = owner1
         let otherOwner = owner2
@@ -200,9 +146,9 @@ contract("PlatformsManager", function (accounts) {
 
         it("prepare", async () => {
             platform = await createPlatform(otherOwner)
-            let successAttachResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
+            let successAttachResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: otherOwner })
             assert.equal(successAttachResultCode, ErrorsEnum.OK)
-            await Setup.platformsManager.attachPlatform(platform.address, { from: systemOwner })
+            await Setup.platformsManager.attachPlatform(platform.address, { from: otherOwner })
         })
         it("snapshot", reverter.snapshot)
 
@@ -252,15 +198,13 @@ contract("PlatformsManager", function (accounts) {
         let owner = owner1
         let nonOwner = owner2
         let platform
-        let platformId
 
 
         it("prepare", async () => {
             platform = await createPlatform(owner)
-            let successAttachResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: systemOwner })
-            assert.equal(successAttachResultCode, ErrorsEnum.OK)
-            let attachTx = await Setup.platformsManager.attachPlatform(platform.address, { from: systemOwner })
-            platformId = eventsHelper.extractEvents(attachTx, "PlatformAttached")[0].args.platformId
+            let attachTx = await Setup.platformsManager.attachPlatform(platform.address, { from: owner })
+            let event = eventsHelper.extractEvents(attachTx, "PlatformAttached")[0]
+            assert.isDefined(event)
         })
         it("snapshot", reverter.snapshot)
 
@@ -274,46 +218,53 @@ contract("PlatformsManager", function (accounts) {
             assert.lengthOf(noPlatformAddresses, 0)
         })
 
-        it("should have an id for a registered platform", async () => {
-            let gotPlatformId = await Setup.platformsManager.getIdForPlatform.call(platform.address)
-            assert.notEqual(gotPlatformId.toNumber(), 0)
-            assert.equal(platformId.toNumber(), gotPlatformId.toNumber())
+        it('revert', function (done) {
+            reverter.revert(done, reverter.snapshotId - 1)
+        })
+    })
+
+    context("platform's events", function () {
+        let owner = accounts[7]
+        let platform
+        let tokenExtension
+        let tokenSymbol = "_TEST"
+        let totalTokensBalance = 1000
+
+        it("prepare", async () => {
+            let createPlatformTx = await Setup.platformsManager.createPlatform({ from: owner })
+            let event = eventsHelper.extractEvents(createPlatformTx, "PlatformRequested")[0]
+            assert.isDefined(event)
+
+            platform = await ChronoBankPlatform.at(event.args.platform)
+            tokenExtension = await TokenManagementInterface.at(event.args.tokenExtension)
         })
 
-        let detachedId
-        it("should not have an id for a detached platform", async () => {
-            let nonOwnerPlatform = await createPlatform(nonOwner)
-            await Setup.platformsManager.attachPlatform(nonOwnerPlatform.address, { from: systemOwner })
-
-            detachedId = await Setup.platformsManager.getIdForPlatform.call(nonOwnerPlatform.address)
-            assert.notEqual(detachedId.toNumber(), 0)
-
-            let successDetachTx = await Setup.platformsManager.detachPlatform(nonOwnerPlatform.address, { from: nonOwner })
-            assert.isDefined(eventsHelper.extractEvents(successDetachTx, "PlatformDetached"))
-
-            let remainedPlatformId = await Setup.platformsManager.getIdForPlatform.call(nonOwnerPlatform.address)
-            assert.equal(remainedPlatformId.toNumber(), 0)
+        it('creating asset should spawn events from a platform', async () => {
+            let issueAssetTx = await platform.issueAsset(tokenSymbol, totalTokensBalance, "test token", "some description", 2, true, { from: owner })
+            let issueEvent = eventsHelper.extractEvents(issueAssetTx, "Issue")[0]
+            assert.isDefined(issueEvent)
+            assert.equal(totalTokensBalance, issueEvent.args.value.valueOf())
         })
 
-        it("should have a platform for real id", async () => {
-            let gotPlatform = await Setup.platformsManager.getPlatformWithId.call(platformId)
-            assert.notEqual(gotPlatform, 0x0)
-            assert.equal(gotPlatform, platform.address)
+        it('reissue asset should spawn events from a platform', async () => {
+            let reissueValue = 333
+            let reissueAssetTx = await platform.reissueAsset(tokenSymbol, reissueValue, { from: owner })
+            let reissueEvent = eventsHelper.extractEvents(reissueAssetTx, "Issue")[0]
+            assert.isDefined(reissueEvent)
+            assert.equal(reissueValue, reissueEvent.args.value.valueOf())
         })
 
-        it("should not have a platform for non-existed id", async () => {
-            let randomPlatformId = 444
-            let noPlatform = await Setup.platformsManager.getPlatformWithId.call(randomPlatformId)
-            assert.equal(noPlatform, 0x0)
-        })
-
-        it("should not have a platform for detached id", async () => {
-            let noPlatform = await Setup.platformsManager.getPlatformWithId.call(detachedId)
-            assert.equal(noPlatform, 0x0)
+        it('revoke asset should spawn events from a platform', async () => {
+            let revokeValue = 333
+            let revokeAssetTx = await platform.revokeAsset(tokenSymbol, revokeValue, { from: owner })
+            let revokeEvent = eventsHelper.extractEvents(revokeAssetTx, "Revoke")[0]
+            assert.isDefined(revokeEvent)
+            assert.equal(revokeValue, revokeEvent.args.value.valueOf())
         })
 
         it('revert', function (done) {
             reverter.revert(done, reverter.snapshotId - 1)
         })
+
     })
 })

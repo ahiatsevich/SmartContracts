@@ -1,0 +1,129 @@
+const Reverter = require('./helpers/reverter')
+const eventsHelper = require('./helpers/eventsHelper')
+const Setup = require('../setup/setup')
+const ErrorsEnum = require("../common/errors")
+const bytes32fromBase58 = require('./helpers/bytes32fromBase58')
+const TokenManagementInterface = artifacts.require('./TokenManagementInterface.sol')
+const ChronoBankPlatform = artifacts.require('./ChronoBankPlatform.sol')
+const ChronoBankAssetOwnershipManager = artifacts.require('./ChronoBankAssetOwnershipManager.sol')
+const LOCWallet = artifacts.require('./LOCWallet.sol')
+
+
+contract("LOCManager multiple currencies", (accounts) => {
+
+    const IS_REISSUABLE = true
+    const WITH_FEE = true
+
+    // LHAU
+    const SYMBOL1 = "LHAU"
+    const SYMBOL1_NAME = "Labour-Hour Australia"
+    const SYMBOL1_DESCRIPTION = "LH for Australia region"
+    const SYMBOL1_BASE_UNIT = 2
+
+    // LHUS
+    const SYMBOL2 = "LHUS"
+    const SYMBOL2_NAME = "Labour-Hour US"
+    const SYMBOL2_DESCRIPTION = "LH for United States region"
+    const SYMBOL2_BASE_UNIT = 2
+
+    // LOC #1
+    const LOC1_NAME = "Wesfarmers"
+    const LOC1_WEB = "http://www.wesfarmers.com.au/"
+    const LOC1_ISSUE_LIMIT = 10000000
+
+    // LOC #2
+    const LOC2_NAME = "Ford Motor Company"
+    const LOC2_WEB = "http://www.ford.com"
+    const LOC2_ISSUE_LIMIT = 10000000
+
+    const Status = {
+        maintenance: 0,
+        active: 1,
+        suspended: 2,
+        bankrupt: 3
+    };
+
+    let unix = Math.round(+new Date() / 1000);
+
+    const reverter = new Reverter(web3)
+
+    let utils = web3._extend.utils
+    const zeroAddress = '0x' + utils.padLeft(utils.toHex("0").substr(2), 40)
+
+    // accounts
+    const systemOwner = accounts[0]
+    const contractOwner = accounts[0]
+    const owner1 = accounts[2]
+    const owner2 = accounts[3]
+
+    const totalAssetBalance = 1000000
+
+    let tokenExtension
+    let assetOwnershipManager
+
+    before("setup", (done) => {
+        Setup.setup((e) => {
+            if (e) {
+                done(e)
+                return
+            }
+
+            Promise.resolve()
+            // TODO: create brand new platform
+            .then(() => Setup.assetsManager.getTokenExtension.call(Setup.chronoBankPlatform.address))
+            .then(_tokenExtensionAddress => TokenManagementInterface.at(_tokenExtensionAddress))
+            .then(_tokenExtension => tokenExtension = _tokenExtension)
+            .then(() => tokenExtension.createAsset(SYMBOL1, SYMBOL1_NAME, SYMBOL1_DESCRIPTION, 0, SYMBOL1_BASE_UNIT, IS_REISSUABLE, WITH_FEE), { from: systemOwner })
+            .then(() => tokenExtension.createAsset(SYMBOL2, SYMBOL2_NAME, SYMBOL2_DESCRIPTION, 0, SYMBOL2_BASE_UNIT, IS_REISSUABLE, WITH_FEE), { from: systemOwner })
+            .then(() => tokenExtension.getAssetOwnershipManager.call())
+            .then(_assetOwnershipManagerAddress => ChronoBankAssetOwnershipManager.at(_assetOwnershipManagerAddress))
+            .then(_assetOwnershipManager => assetOwnershipManager = _assetOwnershipManager)
+            .then(() => assetOwnershipManager.addAssetPartOwner(SYMBOL1, LOCWallet.address, { from: systemOwner }))
+            .then(() => assetOwnershipManager.addAssetPartOwner(SYMBOL2, LOCWallet.address, { from: systemOwner }))
+            .then(() => Setup.chronoMint.addLOC(LOC1_NAME, LOC1_WEB, LOC1_ISSUE_LIMIT, bytes32fromBase58("QmTeW79w7QQ6Npa3b1d5tANreCDxF2iDaAPsDvW6KtLmfB"), unix, SYMBOL1, { from: systemOwner }))
+            .then(() => Setup.chronoMint.setStatus(LOC1_NAME, Status.active, { from: systemOwner }))
+            .then(() => Setup.chronoMint.addLOC(LOC2_NAME, LOC2_WEB, LOC2_ISSUE_LIMIT, bytes32fromBase58("QmTeW79w7QQ6Npa3b1d5tANreCDxF2iDaAPsDvW6KtLmfB"), unix, SYMBOL2, { from: systemOwner }))
+            .then(() => Setup.chronoMint.setStatus(LOC2_NAME, Status.active, { from: systemOwner }))
+            .then(() => Setup.chronoMint.reissueAsset(totalAssetBalance, LOC1_NAME, { from: systemOwner }))
+            .then(() => Setup.chronoMint.reissueAsset(totalAssetBalance, LOC2_NAME, { from: systemOwner }))
+            .then(() => done())
+            .catch(done)
+        })
+    })
+
+    context("check", () => {
+        it("should have the right ChronoBank token extension in assetsManager", async () => {
+            let assetsTokenExtensionAddress = await Setup.assetsManager.getTokenExtension.call(Setup.chronoBankPlatform.address)
+            let chronoBankTokenExtension = await TokenManagementInterface.deployed()
+            assert.equal(assetsTokenExtensionAddress, chronoBankTokenExtension.address)
+
+            let associatedPlatformAddress = await chronoBankTokenExtension.platform.call()
+            assert.equal(associatedPlatformAddress, Setup.chronoBankPlatform.address)
+        })
+
+        it("should have LHAU and LHUS created", async () => {
+            let symbol1TokenAddress = await Setup.erc20Manager.getTokenAddressBySymbol.call(SYMBOL1)
+            assert.notEqual(symbol1TokenAddress, zeroAddress)
+
+            let symbol2TokenAddress = await Setup.erc20Manager.getTokenAddressBySymbol.call(SYMBOL2)
+            assert.notEqual(symbol2TokenAddress, zeroAddress)
+
+            let isSymbol1Owner = await Setup.assetsManager.isAssetOwner.call(SYMBOL1, LOCWallet.address)
+            assert.isOk(isSymbol1Owner)
+            let isSymbol2Owner = await Setup.assetsManager.isAssetOwner.call(SYMBOL2, LOCWallet.address)
+            assert.isOk(isSymbol2Owner)
+        })
+
+        it("should have a balance for created tokens", async () => {
+            let symbol1TokenBalance = await Setup.chronoBankPlatform.balanceOf.call(LOCWallet.address, SYMBOL1)
+            assert.equal(symbol1TokenBalance.toNumber(), totalAssetBalance)
+
+            let symbol2TokenBalance = await Setup.chronoBankPlatform.balanceOf.call(LOCWallet.address, SYMBOL2)
+            assert.equal(symbol2TokenBalance.toNumber(), totalAssetBalance)
+        })
+    })
+
+    context("", () => {
+
+    })
+})

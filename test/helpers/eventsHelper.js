@@ -74,7 +74,7 @@ function EventsHelper() {
 
   this.setupEvents = function(contract) {
     allEventsWatcher = contract.allEvents();
-    console.log("all events for contract:" + JSON.stringify(allEventsWatcher, null, 5));
+    //console.log("all events for contract:" + JSON.stringify(allEventsWatcher, null, 5));
   }
 
   this.extractEvents = function(txHash, eventName) {
@@ -90,6 +90,25 @@ function EventsHelper() {
           }
       }
       return filteredLogs
+  }
+
+  this.extractReceiptLogs = (tx, eventWatcher) => {
+      return new Promise((resolve, reject) => {
+          let receipt = tx.receipt
+          if (receipt.logs.length == 0) {
+              resolve([])
+              return
+          }
+
+          var logs = []
+          for (logEntry of receipt.logs) {
+              if (logEntry.topics[0] === eventWatcher.options.topics[0]) {
+                  logs.push(logEntry)
+              }
+          }
+
+          resolve(logs)
+      })
   }
 };
 

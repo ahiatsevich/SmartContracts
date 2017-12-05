@@ -1,7 +1,5 @@
 pragma solidity ^0.4.11;
 
-import "../contracts/ContractsManagerInterface.sol";
-
 /**
  * @title General MultiEventsHistory user.
  *

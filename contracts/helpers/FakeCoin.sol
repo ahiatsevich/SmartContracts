@@ -47,5 +47,4 @@ contract FakeCoin {
             revert();
         }
     }
-
 }

@@ -5,7 +5,6 @@ const TimeHolder = artifacts.require("./TimeHolder.sol");
 const TimeHolderWallet = artifacts.require('./TimeHolderWallet.sol')
 const LOCManager = artifacts.require('./LOCManager.sol')
 const LOCWallet = artifacts.require('./LOCWallet.sol')
-const PlatformsManagerMock = artifacts.require('./PlatformsManagerMock.sol')
 const FakeCoin = artifacts.require("./FakeCoin.sol");
 const FakeCoin2 = artifacts.require("./FakeCoin2.sol");
 const FakeCoin3 = artifacts.require("./FakeCoin3.sol");
@@ -31,7 +30,6 @@ contract('Rewards', (accounts) => {
   let userManager;
   let multiEventsHistory;
   let assetsManager;
-  let platformsManager;
   let chronoMint;
   let chronoMintWallet;
   let shares;
@@ -43,20 +41,20 @@ contract('Rewards', (accounts) => {
   const SHARES_BALANCE = 1161;
   const CHRONOBANK_PLATFORM_ID = 1;
 
+  const STUB_PLATFORM_ADDRESS = 0x0
+
   let defaultInit = () => {
     return storage.setManager(ManagerMock.address)
     .then(() => assetsManager.init(contractsManager.address))
-    .then(() => platformsManager.init(contractsManager.address))
     .then(() => rewardsWallet.init(contractsManager.address))
-    .then(() => reward.init(contractsManager.address, rewardsWallet.address, CHRONOBANK_PLATFORM_ID, ZERO_INTERVAL))
+    .then(() => reward.init(contractsManager.address, rewardsWallet.address, STUB_PLATFORM_ADDRESS, ZERO_INTERVAL))
     .then(() => chronoMintWallet.init(contractsManager.address))
     .then(() => chronoMint.init(contractsManager.address, chronoMintWallet.address))
     .then(() => userManager.init(contractsManager.address))
     .then(() => timeHolderWallet.init(contractsManager.address))
-    .then(() => timeHolder.init(contractsManager.address, shares.address, timeHolderWallet.address))
+    .then(() => timeHolder.init(contractsManager.address, shares.address, timeHolderWallet.address, accounts[0]))
     .then(() => assetsManager.addAsset(asset1.address, 'LHT', chronoMintWallet.address))
     .then(() => multiEventsHistory.authorize(reward.address))
-    .then(() => platformsManager.addPlatformWithId(storage.address, CHRONOBANK_PLATFORM_ID))
     .then(() => {})
   };
 
@@ -128,8 +126,6 @@ contract('Rewards', (accounts) => {
     .then((instance) => reward = instance)
     .then(() => AssetsManagerMock.deployed())
     .then((instance) => assetsManager = instance)
-    .then(() => PlatformsManagerMock.deployed())
-    .then((instance) => platformsManager = instance)
     .then(() => LOCWallet.new(storage.address, 'LOCWallet'))
     .then((instance) => chronoMintWallet = instance)
     .then(() => LOCManager.new(storage.address, 'LOCManager'))
@@ -185,6 +181,12 @@ contract('Rewards', (accounts) => {
           assert.equal(result[0], asset1.address)
       });
   });
+
+  it("should have right wallet address", function () {
+      return defaultInit()
+      .then(() => reward.wallet.call())
+      .then(_wallet => assert.equal(rewardsWallet.address, _wallet))
+  })
 
   // depositFor(address _address, uint _amount) returns(bool)
   it('should return true if was called with 0 shares (copy from prev period)', () => {
@@ -257,9 +259,7 @@ contract('Rewards', (accounts) => {
     return storage.setManager(ManagerMock.address)
       .then(() => reward.init(contractsManager.address, rewardsWallet.address, CHRONOBANK_PLATFORM_ID, ZERO_INTERVAL + 1))
       .then(() => userManager.init(contractsManager.address))
-      .then(() => timeHolder.init(contractsManager.address, shares.address, timeHolderWallet.address))
-      .then(() => platformsManager.init(contractsManager.address))
-      .then(() => platformsManager.addPlatformWithId(storage.address, CHRONOBANK_PLATFORM_ID))
+      .then(() => timeHolder.init(contractsManager.address, shares.address, timeHolderWallet.address, accounts[0]))
       .then(() => multiEventsHistory.authorize(reward.address))
       .then(() => reward.closePeriod.call())
       .then((res) => assert.notEqual(res, 1))

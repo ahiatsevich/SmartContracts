@@ -13,3 +13,9 @@ contract ChronoBankAssetOwnershipManager {
 
     function changeOwnership(bytes32 _symbol, address _newOwner) returns(uint errorCode);
 }
+
+
+contract ChronoBankManagersRegistry {
+    function holdersCount() constant returns (uint);
+    function holders(uint _idx) constant returns (address _holderAddress);
+}

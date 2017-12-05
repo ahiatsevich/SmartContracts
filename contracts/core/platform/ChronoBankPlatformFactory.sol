@@ -1,25 +1,35 @@
 pragma solidity ^0.4.11;
 
 import "./ChronoBankPlatform.sol";
-
-contract EventsHistory {
-    function authorize(address _caller) returns(bool);
-}
+import "../event/MultiEventsHistory.sol";
+import "../common/Owned.sol";
+import "../contracts/ContractsManagerInterface.sol";
 
 /**
 * @dev TODO
 */
-contract ChronoBankPlatformFactory {
+contract ChronoBankPlatformFactory is Owned {
 
-    function createPlatform(EventsHistory history, address owner) returns(address) {
-        ChronoBankPlatform platform = new ChronoBankPlatform();
-        history.authorize(platform);
-        platform.setupEventsHistory(history);
-        platform.changeContractOwnership(owner);
-        return platform;
+    address ownershipResolver;
+
+    function ChronoBankPlatformFactory(address _ownershipResolver) public {
+        require(_ownershipResolver != 0x0);
+
+        ownershipResolver = _ownershipResolver;
     }
 
-    function() {
-        throw;
+    function setOwnershipResolver(address _ownershipResolver) onlyContractOwner public {
+        require(_ownershipResolver != 0x0);
+        ownershipResolver = _ownershipResolver;
+    }
+
+    function createPlatform(address, MultiEventsHistory eventsHistory, address eventsHistoryAdmin) public returns(address) {
+        ChronoBankPlatform platform = new ChronoBankPlatform();
+        eventsHistory.authorize(platform);
+        platform.setupEventsAdmin(eventsHistoryAdmin);
+        platform.setupEventsHistory(eventsHistory);
+        platform.setupAssetOwningListener(ownershipResolver);
+        platform.transferContractOwnership(msg.sender);
+        return platform;
     }
 }

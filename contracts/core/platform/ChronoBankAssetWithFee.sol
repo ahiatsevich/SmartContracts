@@ -26,7 +26,7 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
         if (_transferFee(_from, _fromValue, _sender)) {
             _;
             if (!_success[0] && _subjectToFees(_from, _fromValue)) {
-                throw;
+                revert();
             }
         }
     }
@@ -34,20 +34,38 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
     /**
      * Sets fee collecting address and fee percent.
      *
-     * Can be set only once, and only by contract owner.
-     *
      * @param _feeAddress fee collecting address.
      * @param _feePercent fee percent, 1 is 0.01%, 10000 is 100%.
      *
      * @return success.
      */
-    function setupFee(address _feeAddress, uint32 _feePercent) onlyContractOwner() returns(bool) {
-        if (feeAddress != 0x0) {
+    function setupFee(address _feeAddress, uint32 _feePercent) onlyContractOwner public returns (bool) {
+        setFee(_feePercent);
+        return setFeeAddress(_feeAddress);
+    }
+
+    /**
+    * @dev Sets fee address separate from setting fee percent value. Can be set only once
+    *
+    * @param _feeAddress fee collecting address
+    *
+    * @return result of the operation
+    */
+    function setFeeAddress(address _feeAddress) onlyContractOwner public returns (bool) {
+        if (feeAddress == _feeAddress) {
             return false;
         }
         feeAddress = _feeAddress;
-        feePercent = _feePercent;
         return true;
+    }
+
+    /**
+    * @dev Sets fee percent value. Can be changed multiple times
+    *
+    * @param _feePercent fee percent, 1 is 0.01%, 10000 is 100%.
+    */
+    function setFee(uint32 _feePercent) onlyContractOwner public {
+        feePercent = _feePercent;
     }
 
     /**

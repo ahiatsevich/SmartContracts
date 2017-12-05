@@ -1,6 +1,6 @@
 pragma solidity ^0.4.11;
 
-import "./TokenManagementExtension.sol";
+import "./extensions/TokenExtensionRouter.sol";
 
 /**
 * @dev TODO
@@ -18,7 +18,7 @@ contract ChronoBankTokenExtensionFactory {
     * @dev TODO
     */
     function createTokenExtension(address _platform) public returns (address) {
-        TokenManagementExtension tokenExtension = new TokenManagementExtension(_platform, contractsManager);
+        address tokenExtension = new TokenExtensionRouter(contractsManager, _platform);
         return tokenExtension;
     }
 }
