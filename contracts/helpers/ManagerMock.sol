@@ -7,10 +7,7 @@ contract ManagerMock {
         denied = true;
     }
 
-    function isAllowed(address _actor, bytes32 _role) public returns (bool) {
-        _actor == 0x0;
-        _role.length == 0;
-
+    function isAllowed(address, bytes32) public returns (bool) {
         if (denied) {
             denied = false;
             return false;
@@ -18,8 +15,7 @@ contract ManagerMock {
         return true;
     }
 
-    function hasAccess(address _actor) public pure returns(bool) {
-        _actor == 0x0;
+    function hasAccess(address) public pure returns(bool) {
         return true;
     }
 }

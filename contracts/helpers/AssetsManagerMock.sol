@@ -42,10 +42,10 @@ contract AssetsManagerMock is AssetsManagerInterface {
         return assets[symbol];
     }
 
-    function addAsset(address asset, bytes32 _symbol, address owner) public returns (bool) {
+    function addAsset(address _asset, bytes32 _symbol, address) public returns (bool) {
         if (assets[_symbol] == 0x0) {
             symbols.push(_symbol);
-            assets[_symbol] = asset;
+            assets[_symbol] = _asset;
             return true;
         }
         return false;
@@ -55,37 +55,27 @@ contract AssetsManagerMock is AssetsManagerInterface {
         revert();
     }
 
-    function getAssetsForOwner(address platform, address owner) public constant returns (bytes32[]) {
-        owner == 0x0;
-        platform == 0x0;
+    function getAssetsForOwner(address, address) public constant returns (bytes32[]) {
         return symbols;
     }
 
-    function getAssetsForOwnerCount(address platform, address owner) public constant returns (uint) {
-        owner == 0x0;
-        platform == 0x0;
+    function getAssetsForOwnerCount(address, address) public constant returns (uint) {
         return symbols.length;
     }
 
-    function getAssetForOwnerAtIndex(address platform, address owner, uint _index) public constant returns (bytes32) {
-        owner == 0x0;
-        platform == 0x0;
+    function getAssetForOwnerAtIndex(address, address, uint _index) public constant returns (bytes32) {
         return symbols[_index];
     }
 
-    function isAssetOwner(bytes32 _symbol, address _user) public constant returns (bool) {
-        _user == 0x0;
-        _symbol.length == 0;
+    function isAssetOwner(bytes32, address) public constant returns (bool) {
         return true;
     }
 
-    function getTokenExtension(address _platform) public constant returns (address) {
-        _platform == 0x0;
+    function getTokenExtension(address) public constant returns (address) {
         revert();
     }
 
-    function requestTokenExtension(address _platform) public returns (uint) {
-        _platform == 0x0;
+    function requestTokenExtension(address) public returns (uint) {
         revert();
     }
 }
