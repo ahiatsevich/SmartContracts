@@ -1153,4 +1153,148 @@ contract('ChronoBankAsset', function(accounts) {
       assert.equal(result.valueOf(), VALUE);
     });
   });
+
+  it('should be not be possible to transfer if stoped', async() => {
+    const holder = accounts[1];
+    const balance = 100;
+
+    let success = await chronoBankAsset.restrict.call(holder);
+    assert.isTrue(result);
+
+    await chronoBankAsset.restrict(holder);
+    let isRestrict = await chronoBankAsset.blacklist(holder);
+    assert.isTrue(isRestrict);
+  });
+
+  it('should be not be possible to transfer if target address in blacklist', async() => {
+    const holder = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder);
+    const result = await chronoBankAssetProxy.transfer.call(holder, balance);
+    assert.isFalse(result);
+  });
+
+  it('should be not be possible to transfer if sender address in blacklist', async() => {
+    const holder = accounts[0];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder2);
+    const result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
+    assert.isFalse(result);
+  });
+
+  it('should be not be possible to make transfer from if stoped', async() => {
+    const holder = accounts[1];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.stop(true);
+    const result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isFalse(result);
+  });
+
+  it('should be not be possible to make transfer from if target address in blacklist', async() => {
+    const holder = accounts[0];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder2);
+    const result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isFalse(result);
+  });
+
+  it('should be not be possible to make transfer from if sender address in blacklist', async() => {
+    const holder = accounts[1];
+    const holder1 = accounts[0];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder);
+    const result = await chronoBankAssetProxy.transferFrom.call(holder, holder1, balance, {from: holder});
+    assert.isFalse(result);
+  });
+
+  it('should be not be possible to transfer if stoped', async() => {
+    const holder = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.stop(true);
+    let result = await chronoBankAssetProxy.transfer.call(holder, balance);
+    assert.isFalse(result);
+
+    await chronoBankAsset.stop(false);
+    result = await chronoBankAssetProxy.transfer.call(holder, balance);
+    assert.isTrue(result);
+  });
+
+  it('should be not be possible to transfer if target address in blacklist', async() => {
+    const holder = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder);
+    let result = await chronoBankAssetProxy.transfer.call(holder, balance);
+    assert.isFalse(result);
+
+
+    await chronoBankAsset.restrict(holder);
+    result = await chronoBankAssetProxy.transfer.call(holder, balance);
+    assert.isTrue(result);
+  });
+
+  it('should be not be possible to transfer if sender address in blacklist', async() => {
+    const holder = accounts[0];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder2);
+    let result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
+    assert.isFalse(result);
+
+    await chronoBankAsset.restrict(holder2);
+    result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
+    assert.isTrue(result);
+  });
+
+  it('should be possible to add to blecklist', async() => {
+    const holder = accounts[1];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.stop(true);
+    let result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isFalse(result);
+
+    await chronoBankAsset.stop(true);
+    result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isTrue(result);
+  });
+
+  it('should be not be possible to make transfer from if stoped', async() => {
+    const holder = accounts[1];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.stop(true);
+    let result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isFalse(result);
+
+    await chronoBankAsset.stop(true);
+    result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isTrue(result);
+  });
+
+  it('should be not be possible to make transfer from if target address in blacklist', async() => {
+    const holder = accounts[0];
+    const holder2 = accounts[1];
+    const balance = 100;
+
+    await chronoBankAsset.restrict(holder2);
+    let result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isFalse(result);
+
+    await chronoBankAsset.restrict(holder2);
+    result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    assert.isTrue(result);
+  });
 });
