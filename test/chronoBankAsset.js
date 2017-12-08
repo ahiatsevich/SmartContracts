@@ -1156,13 +1156,12 @@ contract('ChronoBankAsset', function(accounts) {
 
   it('should be not be possible to transfer if stoped', async() => {
     const holder = accounts[1];
-    const balance = 100;
 
     let success = await chronoBankAsset.restrict.call(holder);
-    assert.isTrue(result);
+    assert.isTrue(success);
 
     await chronoBankAsset.restrict(holder);
-    let isRestrict = await chronoBankAsset.blacklist(holder);
+    let isRestrict = await chronoBankAsset.blacklist.call(holder);
     assert.isTrue(isRestrict);
   });
 
@@ -1179,6 +1178,9 @@ contract('ChronoBankAsset', function(accounts) {
     const holder = accounts[0];
     const holder2 = accounts[1];
     const balance = 100;
+
+    let success = await chronoBankAsset.restrict.call(holder2);
+    assert.isTrue(success);
 
     await chronoBankAsset.restrict(holder2);
     const result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
@@ -1200,6 +1202,9 @@ contract('ChronoBankAsset', function(accounts) {
     const holder2 = accounts[1];
     const balance = 100;
 
+    let success = await chronoBankAsset.restrict.call(holder2);
+    assert.isTrue(success);
+
     await chronoBankAsset.restrict(holder2);
     const result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
     assert.isFalse(result);
@@ -1209,6 +1214,9 @@ contract('ChronoBankAsset', function(accounts) {
     const holder = accounts[1];
     const holder1 = accounts[0];
     const balance = 100;
+
+    let success = await chronoBankAsset.restrict.call(holder2);
+    assert.isTrue(success);
 
     await chronoBankAsset.restrict(holder);
     const result = await chronoBankAssetProxy.transferFrom.call(holder, holder1, balance, {from: holder});
@@ -1232,12 +1240,17 @@ contract('ChronoBankAsset', function(accounts) {
     const holder = accounts[1];
     const balance = 100;
 
+    let success = await chronoBankAsset.restrict.call(holder);
+    assert.isTrue(success);
+
     await chronoBankAsset.restrict(holder);
     let result = await chronoBankAssetProxy.transfer.call(holder, balance);
     assert.isFalse(result);
 
+    let success = await chronoBankAsset.unrestrict.call(holder);
+    assert.isTrue(success);
 
-    await chronoBankAsset.restrict(holder);
+    await chronoBankAsset.unrestrict(holder);
     result = await chronoBankAssetProxy.transfer.call(holder, balance);
     assert.isTrue(result);
   });
@@ -1247,27 +1260,51 @@ contract('ChronoBankAsset', function(accounts) {
     const holder2 = accounts[1];
     const balance = 100;
 
+    let success = await chronoBankAsset.restrict.call(holder2);
+    assert.isTrue(success);
+
     await chronoBankAsset.restrict(holder2);
     let result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
     assert.isFalse(result);
 
-    await chronoBankAsset.restrict(holder2);
+    let success = await chronoBankAsset.unrestrict.call(holder2);
+    assert.isTrue(success);
+
+    await chronoBankAsset.unrestrict(holder2);
     result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
     assert.isTrue(result);
   });
 
-  it('should be possible to add to blecklist', async() => {
-    const holder = accounts[1];
+
+  it('should be not be possible to transfer if sender and target addresses are in blacklist', async() => {
+    const holder = accounts[0];
     const holder2 = accounts[1];
     const balance = 100;
 
-    await chronoBankAsset.stop(true);
-    let result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    let success = await chronoBankAsset.restrict.call(holder);
+    assert.isTrue(success);
+
+    await chronoBankAsset.restrict(holder1);
+
+    let success = await chronoBankAsset.restrict.call(holder2);
+    assert.isTrue(success);
+
+    await chronoBankAsset.restrict(holder2);
+    let result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
     assert.isFalse(result);
 
-    await chronoBankAsset.stop(true);
-    result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
+    let success = await chronoBankAsset.unrestrict.call(holder);
+    assert.isTrue(success);
+
+    await chronoBankAsset.unrestrict(holder);
+
+    let success = await chronoBankAsset.unrestrict.call(holder2);
+    assert.isTrue(success);
+
+    await chronoBankAsset.unrestrict(holder2);
+    result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
     assert.isTrue(result);
+
   });
 
   it('should be not be possible to make transfer from if stoped', async() => {
@@ -1279,7 +1316,7 @@ contract('ChronoBankAsset', function(accounts) {
     let result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
     assert.isFalse(result);
 
-    await chronoBankAsset.stop(true);
+    await chronoBankAsset.stop(false);
     result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
     assert.isTrue(result);
   });
@@ -1293,7 +1330,7 @@ contract('ChronoBankAsset', function(accounts) {
     let result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
     assert.isFalse(result);
 
-    await chronoBankAsset.restrict(holder2);
+    await chronoBankAsset.unrestrict(holder2);
     result = await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance);
     assert.isTrue(result);
   });
