@@ -1215,7 +1215,7 @@ contract('ChronoBankAsset', function(accounts) {
     const holder1 = accounts[0];
     const balance = 100;
 
-    let success = await chronoBankAsset.restrict.call(holder2);
+    let success = await chronoBankAsset.restrict.call(holder);
     assert.isTrue(success);
 
     await chronoBankAsset.restrict(holder);
@@ -1247,7 +1247,7 @@ contract('ChronoBankAsset', function(accounts) {
     let result = await chronoBankAssetProxy.transfer.call(holder, balance);
     assert.isFalse(result);
 
-    let success = await chronoBankAsset.unrestrict.call(holder);
+    success = await chronoBankAsset.unrestrict.call(holder);
     assert.isTrue(success);
 
     await chronoBankAsset.unrestrict(holder);
@@ -1267,7 +1267,7 @@ contract('ChronoBankAsset', function(accounts) {
     let result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
     assert.isFalse(result);
 
-    let success = await chronoBankAsset.unrestrict.call(holder2);
+    success = await chronoBankAsset.unrestrict.call(holder2);
     assert.isTrue(success);
 
     await chronoBankAsset.unrestrict(holder2);
@@ -1284,21 +1284,21 @@ contract('ChronoBankAsset', function(accounts) {
     let success = await chronoBankAsset.restrict.call(holder);
     assert.isTrue(success);
 
-    await chronoBankAsset.restrict(holder1);
+    await chronoBankAsset.restrict(holder);
 
-    let success = await chronoBankAsset.restrict.call(holder2);
+    success = await chronoBankAsset.restrict.call(holder2);
     assert.isTrue(success);
 
     await chronoBankAsset.restrict(holder2);
     let result = await chronoBankAssetProxy.transfer.call(holder, balance, {from: holder2});
     assert.isFalse(result);
 
-    let success = await chronoBankAsset.unrestrict.call(holder);
+    success = await chronoBankAsset.unrestrict.call(holder);
     assert.isTrue(success);
 
     await chronoBankAsset.unrestrict(holder);
 
-    let success = await chronoBankAsset.unrestrict.call(holder2);
+    success = await chronoBankAsset.unrestrict.call(holder2);
     assert.isTrue(success);
 
     await chronoBankAsset.unrestrict(holder2);
