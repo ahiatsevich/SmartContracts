@@ -15,6 +15,9 @@ import {ChronoBankPlatformInterface as ChronoBankPlatform} from "./ChronoBankPla
  * didn't happen yet.
  */
 contract ChronoBankAsset is ChronoBankAssetInterface {
+
+    uint constant OK = 1;
+
     // Assigned asset proxy contract, immutable.
     ChronoBankAssetProxy public proxy;
 
@@ -86,8 +89,9 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     *
     *  @return success.
     */
-    function stop(bool _isStoped) onlyAuthorized returns (bool) {
+    function stop(bool _isStoped) onlyAuthorized returns (uint) {
         isStoped = _isStoped;
+        return OK;
     }
 
     /**
