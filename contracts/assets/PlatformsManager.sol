@@ -8,18 +8,14 @@ import "./PlatformsManagerEmitter.sol";
 import "./AssetsManagerInterface.sol";
 import "./PlatformsManagerInterface.sol";
 import "../core/platform/ChronoBankPlatform.sol";
-import "./AssetOwnershipDelegateResolver.sol";
-
 
 contract PlatformsFactory {
     function createPlatform(address owner, address eventsHistory, address eventsHistoryAdmin) returns (address);
 }
 
-
 contract OwnedContract {
     address public contractOwner;
 }
-
 
 /**
 * @title Defines implementation for managing platforms creation and tracking system's platforms.
@@ -288,8 +284,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
 
         if (_lastSyncIdx != PLATFORM_ATTACH_SYNC_DONE) {
-            AssetOwningListener _assetOwnershipResolver = AssetOwningListener(lookupManager("AssetOwnershipResolver"));
-            resultCode = _runThroughPlatform(_lastSyncIdx, _platform, _assetOwnershipResolver.assetOwnerAdded);
+            resultCode = _runThroughPlatform(_lastSyncIdx, _platform);
             if (resultCode != OK) {
                 return resultCode;
             }
@@ -310,8 +305,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
 
         if (_lastSyncIdx != PLATFORM_DETACH_SYNC_DONE) {
-            AssetOwningListener _assetOwnershipResolver = AssetOwningListener(lookupManager("AssetOwnershipResolver"));
-            resultCode = _runThroughPlatform(_lastSyncIdx, _platform, _assetOwnershipResolver.assetOwnerRemoved);
+            resultCode = _runThroughPlatform(_lastSyncIdx, _platform);
             if (resultCode != OK) {
                 return resultCode;
             }
@@ -325,7 +319,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     /**
     * @dev Main synchronization method during attach/detach. PRIVATE
     */
-    function _runThroughPlatform(uint _lastSyncIdx, address _platform, function (bytes32, address, address) external ownerUpdate) private returns (uint) {
+    function _runThroughPlatform(uint _lastSyncIdx, address _platform) private returns (uint) {
         ChronoBankAssetOwnershipManager _chronoBankPlatform = ChronoBankAssetOwnershipManager(_platform);
         ChronoBankManagersRegistry _chronoBankRegistry = ChronoBankManagersRegistry(_platform);
 
@@ -346,10 +340,6 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
                 if (_shouldInitHolders) {
                     _holders[_holderIdx] = _chronoBankRegistry.holders(_holderIdx);
                 }
-
-                if (_chronoBankPlatform.hasAssetRights(_holders[_holderIdx], _symbol)) {
-                    ownerUpdate(_symbol, _platform, _holders[_holderIdx]);
-                }
             }
 
             _shouldInitHolders = false;
@@ -361,7 +351,6 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     /**
     * Events emitting
     */
-
     function _emitError(uint _errorCode) private returns (uint) {
         PlatformsManagerEmitter(getEventsHistory()).emitError(_errorCode);
         return _errorCode;

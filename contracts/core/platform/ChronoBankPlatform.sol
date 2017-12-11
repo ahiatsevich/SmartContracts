@@ -9,12 +9,6 @@ contract ProxyEventsEmitter {
     function emitApprove(address _from, address _spender, uint _value);
 }
 
-
-contract AssetOwningListener {
-    function assetOwnerAdded(bytes32 _symbol, address _platform, address _owner);
-    function assetOwnerRemoved(bytes32 _symbol, address _platform, address _owner);
-}
-
 /**
  * @title ChronoBank Platform.
  *
@@ -97,8 +91,6 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
     // Should use interface of the emitter, but address of events history.
     address public eventsHistory;
     address public eventsAdmin;
-
-    address owningListener;
 
     /**
      * Emits Error event with specified error message.
@@ -217,14 +209,6 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      */
     function setupEventsAdmin(address _eventsAdmin) onlyContractOwner returns (uint errorCode) {
         eventsAdmin = _eventsAdmin;
-        return OK;
-    }
-
-    /**
-    * @dev DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    */
-    function setupAssetOwningListener(address _listener) onlyEventsAdmin public returns (uint) {
-        owningListener = _listener;
         return OK;
     }
 
@@ -386,7 +370,6 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
     function addAssetPartOwner(bytes32 _symbol, address _partowner) onlyOneOfOwners(_symbol) public returns (uint) {
         uint holderId = _createHolderId(_partowner);
         assets[_symbol].partowners[holderId] = true;
-        _delegateAssetOwnerAdded(_symbol, _partowner);
         ChronoBankPlatformEmitter(eventsHistory).emitOwnershipChange(0x0, _partowner, _symbol);
         return OK;
     }
@@ -403,7 +386,6 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
     function removeAssetPartOwner(bytes32 _symbol, address _partowner) onlyOneOfOwners(_symbol) public returns (uint) {
         uint holderId = getHolderId(_partowner);
         delete assets[_symbol].partowners[holderId];
-        _delegateAssetOwnerRemoved(_symbol, _partowner);
         ChronoBankPlatformEmitter(eventsHistory).emitOwnershipChange(_partowner, 0x0, _symbol);
         return OK;
     }
@@ -600,7 +582,6 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        _delegateAssetOwnerAdded(_symbol, _address(creatorId));
         ChronoBankPlatformEmitter(eventsHistory).emitIssue(_symbol, _value, _address(holderId));
         return OK;
     }
@@ -697,8 +678,6 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        _delegateAssetOwnerRemoved(_symbol, oldOwner);
-        _delegateAssetOwnerAdded(_symbol, _newOwner);
         ChronoBankPlatformEmitter(eventsHistory).emitOwnershipChange(oldOwner, _newOwner, _symbol);
         return OK;
     }
@@ -878,23 +857,5 @@ contract ChronoBankPlatform is Object, ChronoBankPlatformEmitter {
      */
     function proxyTransferFromWithReference(address _from, address _to, uint _value, bytes32 _symbol, string _reference, address _sender) onlyProxy(_symbol) public returns (uint) {
         return _transfer(getHolderId(_from), _createHolderId(_to), _value, _symbol, _reference, getHolderId(_sender));
-    }
-
-    /**
-    * @dev DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    */
-    function _delegateAssetOwnerAdded(bytes32 _symbol, address _owner) private {
-        if (owningListener != 0x0) {
-            AssetOwningListener(owningListener).assetOwnerAdded(_symbol, this, _owner);
-        }
-    }
-
-    /**
-    * @dev DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    */
-    function _delegateAssetOwnerRemoved(bytes32 _symbol, address _owner) private {
-        if (owningListener != 0x0) {
-            AssetOwningListener(owningListener).assetOwnerRemoved(_symbol, this, _owner);
-        }
     }
 }

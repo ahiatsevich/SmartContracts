@@ -41,7 +41,7 @@ contract EventsHistory {
 * @dev This contract contains statistics getters but they are deprecated and will be removed soon.
 *
 */
-contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetOwningListener, BaseManager, AssetsManagerEmitter {
+contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseManager, AssetsManagerEmitter {
 
     /** Error codes */
 
@@ -179,55 +179,6 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
     */
     function containsTokenExtension(address _tokenExtension) public constant returns (bool) {
         return store.includes(tokenExtensions, _tokenExtension);
-    }
-
-    /**
-    * @dev Implements AssetOwningListener interface to provide an ability to track asset ownership
-    * from chronobank platforms.
-    * Should be called when new owner of a symbol is added in a platform.
-    * Allowed to be invoked only by AssetOwnershipResolver.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _symbol token's associated symbol
-    * @param _platform address of a platform where asset's ownership had changed
-    * @param _owner user which was added as an owner of the token
-    */
-    function assetOwnerAdded(bytes32 _symbol, address _platform, address _owner) onlyResolver public {
-        bytes32 _symbolKey = keccak256(_owner, _platform);
-        if (store.includes(userWithPlatformToOwnedSymbols, _symbolKey, _symbol)) {
-            return;
-        }
-
-        store.add(userToParticipatedPlatforms, bytes32(_owner), _platform);
-        store.add(userWithPlatformToOwnedSymbols, _symbolKey, _symbol);
-        store.add(symbolWithPlatformToUsers, keccak256(_symbol, _platform), _owner);
-    }
-
-    /**
-    * @dev Implements AssetOwningListener interface to provide an ability to track asset ownership
-    * from chronobank platforms.
-    * Should be called when an existed owner of a symbol is removed in a platform.
-    * Allowed to be invoked only by AssetOwnershipResolver.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _symbol token's associated symbol
-    * @param _platform address of a platform where asset's ownership had changed
-    * @param _owner user which was removed from the token's ownership
-    */
-    function assetOwnerRemoved(bytes32 _symbol, address _platform, address _owner) onlyResolver public {
-        bytes32 _symbolKey = keccak256(_owner, _platform);
-        if (!store.includes(userWithPlatformToOwnedSymbols, _symbolKey, _symbol)) {
-            return;
-        }
-
-        store.remove(userWithPlatformToOwnedSymbols, _symbolKey, _symbol);
-
-        if (store.count(userWithPlatformToOwnedSymbols, _symbolKey) == 0) {
-            store.remove(userToParticipatedPlatforms, bytes32(_owner), _platform);
-        }
-        store.remove(symbolWithPlatformToUsers, keccak256(_symbol, _platform), _owner);
     }
 
     /**
@@ -499,7 +450,6 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
     }
 
     /** Events emitting */
-
     function _emitError(uint _errorCode) private returns (uint) {
         AssetsManagerEmitter(getEventsHistory()).emitError(_errorCode);
         return _errorCode;

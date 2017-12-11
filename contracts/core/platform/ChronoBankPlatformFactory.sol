@@ -32,7 +32,6 @@ contract ChronoBankPlatformFactory is Owned {
         eventsHistory.authorize(platform);
         platform.setupEventsAdmin(eventsHistoryAdmin);
         platform.setupEventsHistory(eventsHistory);
-        platform.setupAssetOwningListener(ownershipResolver);
         platform.transferContractOwnership(msg.sender);
         return platform;
     }
