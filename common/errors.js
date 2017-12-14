@@ -169,9 +169,6 @@ const errorsLibrary = {
 
     PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS: errorScope.platforms + 1,
     PLATFORMS_PLATFORM_DOES_NOT_EXIST: errorScope.platforms + 2,
-    PLATFORMS_INCONSISTENT_INTERNAL_STATE: errorScope.platforms + 3,
-    PLATFORMS_UPDATE_PLATFORM_METADATA_THE_SAME_NAME: errorScope.platforms + 4,
-    PLATFORMS_REPEAT_SYNC_IS_NOT_COMPLETED: errorScope.platforms + 5,
 
     TOKEN_EXTENSION_ASSET_TOKEN_EXISTS: errorScope.tokenextension + 1,
     TOKEN_EXTENSION_ASSET_COULD_NOT_BE_REISSUED: errorScope.tokenextension + 2,
