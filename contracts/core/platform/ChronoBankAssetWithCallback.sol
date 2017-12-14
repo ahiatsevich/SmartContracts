@@ -4,9 +4,7 @@ import "./ChronoBankAsset.sol";
 import "../common/Owned.sol";
 import "./ChronoBankAssetWithCallbackListener.sol";
 
-/**
- * @title ChronoBank Asset With Callback implementation contract.
- */
+/// @title ChronoBank Asset With Callback implementation contract.
 contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
     // max allowed number of listeners
     uint constant MAX_LISTENERS_COUNT = 16;
@@ -20,21 +18,19 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
     // each listener could be notified with personal(isolated) data
     mapping(address => bytes) listenersData;
 
-    /**
-    *  Add given address to listeners.
-    *
-    *  _listener must implement ChronoBankAssetWithCallbackListener interface.
-    *  Note, no compatibility checks are performed at this method.
-    *
-    *  _listener will be notified with given _data
-    *
-    *  This method can be executed only by contractOwner.
-    *
-    *  @param _listener contract address
-    *  @param _data which will be used as an additional param in notification
-    *
-    *  @return success.
-    */
+    /// Add given address to listeners.
+    ///
+    /// _listener must implement ChronoBankAssetWithCallbackListener interface.
+    /// Note, no compatibility checks are performed at this method.
+    ///
+    /// _listener will be notified with given _data
+    ///
+    /// This method can be executed only by contractOwner.
+    ///
+    /// @param _listener contract address
+    /// @param _data which will be used as an additional param in notification
+    ///
+    /// @return success.
     function addListener(address _listener, bytes _data) public onlyContractOwner returns (bool) {
         if (isListener(_listener)) return;
 
@@ -53,15 +49,10 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
         listenersCount++;
     }
 
-    /**
-    *  Removed address from listeners.
-    *
-    *  This method can be executed only by contractOwner.
-    *
-    *  @param _listener contract address
-    *
-    *  @return success.
-    */
+    /// Removed address from listeners.
+    /// This method can be executed only by contractOwner.
+    /// @param _listener contract address
+    /// @return success.
     function removeListener(address _listener) public onlyContractOwner returns (bool) {
         uint listenerIndex = listenerIndexs[_listener];
 
@@ -78,30 +69,22 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
         return true;
     }
 
-    /**
-    *  Tells whether given address is listener or not.
-    *
-    *  @param _listener contract address
-    *
-    *  @return is listener or not.
-    */
+    /// Tells whether given address is listener or not.
+    /// @param _listener contract address
+    /// @return is listener or not.
     function isListener(address _listener) public constant returns (bool) {
         return listenerIndexs[_listener] > 0;
     }
 
-    /**
-    *  Returns data assigned to used for listener notification
-    */
+    /// Returns data assigned to used for listener notification
     function getListenerData(address _listener) public constant returns (bytes) {
         return listenersData[_listener];
     }
 
-    /**
-    *  Override ChronoBankAsset#_transferWithReference()
-    *
-    *  Call super#_transferWithReference() and notify listeners
-    *  that a transfer has been performed.
-    */
+    /// Override ChronoBankAsset#_transferWithReference()
+    ///
+    /// Call super#_transferWithReference() and notify listeners
+    /// that a transfer has been performed.
     function _transferWithReference(address _to, uint _value, string _reference, address _sender)
     internal
     returns (bool result)
@@ -112,9 +95,7 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
         }
     }
 
-    /**
-    *  Notify listener that Transfer has been performed.
-    */
+    /// Notify listener that Transfer has been performed.
     function notifyOnTransfer(address _from, uint _value) internal {
         for (uint i = 0; i < listenersCount; i++) {
             // Make sure that `listeners` list has no gaps and always reorganized
@@ -123,9 +104,7 @@ contract ChronoBankAssetWithCallback is ChronoBankAsset, Owned {
         }
     }
 
-    /**
-    *  Reorganize listeners, get rid of empty gaps.
-    */
+    /// Reorganize listeners, get rid of empty gaps.
     function reorganizeListeners() private {
         uint free = 1;
         while (free < listenersCount) {
