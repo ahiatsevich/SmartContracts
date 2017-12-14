@@ -2,13 +2,11 @@ pragma solidity ^0.4.11;
 
 import '../event/MultiEventsHistoryAdapter.sol';
 
-/**
- * @title ChronoBank Platform Emitter.
- *
- * Contains all the original event emitting function definitions and events.
- * In case of new events needed later, additional emitters can be developed.
- * All the functions is meant to be called using delegatecall.
- */
+/// @title ChronoBank Platform Emitter.
+///
+/// Contains all the original event emitting function definitions and events.
+/// In case of new events needed later, additional emitters can be developed.
+/// All the functions is meant to be called using delegatecall.
 contract ChronoBankPlatformEmitter is MultiEventsHistoryAdapter {
     event Transfer(address indexed from, address indexed to, bytes32 indexed symbol, uint value, string reference);
     event Issue(bytes32 indexed symbol, uint value, address indexed by);
