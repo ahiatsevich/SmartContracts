@@ -8,11 +8,10 @@ import "./PlatformsManagerEmitter.sol";
 import "./AssetsManagerInterface.sol";
 import "./PlatformsManagerInterface.sol";
 import "../core/platform/ChronoBankPlatform.sol";
-import "./AssetOwnershipDelegateResolver.sol";
 
 
 contract PlatformsFactory {
-    function createPlatform(address owner, address eventsHistory, address eventsHistoryAdmin) returns (address);
+    function createPlatform(address eventsHistory) returns (address);
 }
 
 
@@ -28,29 +27,23 @@ contract OwnedContract {
 contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmitter, PlatformsManagerInterface {
 
     /** Error codes */
-
-    uint constant ERROR_PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS = 21001;
-    uint constant ERROR_PLATFORMS_PLATFORM_DOES_NOT_EXIST = 21002;
-    uint constant ERROR_PLATFORMS_INCONSISTENT_INTERNAL_STATE = 21003;
-    uint constant ERROR_PLATFORMS_REPEAT_SYNC_IS_NOT_COMPLETED = 21005;
-    uint constant ERROR_PLATFORMS_CANNOT_UPDATE_EVENTS_HISTORY_NOT_EVENTS_ADMIN = 21006;
-
-    uint constant PLATFORM_ATTACH_SYNC_DONE = 2**255;
-    uint constant PLATFORM_DETACH_SYNC_DONE = 2**255-1;
+    uint constant ERROR_PLATFORMS_SCOPE = 21000;
+    uint constant ERROR_PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS = ERROR_PLATFORMS_SCOPE + 1;
+    uint constant ERROR_PLATFORMS_PLATFORM_DOES_NOT_EXIST = ERROR_PLATFORMS_SCOPE + 2;
+    uint constant ERROR_PLATFORMS_INCONSISTENT_INTERNAL_STATE = ERROR_PLATFORMS_SCOPE + 3;
+    uint constant ERROR_PLATFORMS_REPEAT_SYNC_IS_NOT_COMPLETED = ERROR_PLATFORMS_SCOPE + 5;
+    uint constant ERROR_PLATFORMS_CANNOT_UPDATE_EVENTS_HISTORY_NOT_EVENTS_ADMIN = ERROR_PLATFORMS_SCOPE + 6;
 
     /** Storage keys */
 
     /** @dev address of platforms factory contract */
     StorageInterface.Address platformsFactory;
 
-    /** @dev mapping (address => set(address)) stands for (owner => set(platform)) */
-    StorageInterface.AddressesSetMapping ownerToPlatforms;
+    /// @dev DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
+    StorageInterface.OrderedAddressesSet platforms_old;
 
     /** @dev set(address) stands for set(platform) */
-    StorageInterface.OrderedAddressesSet platforms;
-
-    /** @dev mapping (address => uint256) stands for (platform => index) */
-    StorageInterface.AddressUIntMapping syncPlatformToSymbolIdx;
+    StorageInterface.AddressesSet platforms;
 
     /**
     * @dev Guards methods for only platform owners
@@ -61,62 +54,28 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
     }
 
-    /**
-    * @dev Guards methods for contracts that was platorm's owners the last time they were accessed
-    */
-    modifier onlyPreviousPlatformOwner(address _platform, address _previousOwner) {
-        if (store.includes(ownerToPlatforms, bytes32(_previousOwner), _platform)) {
-            _;
-        }
-    }
-
-    function PlatformsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) {
+    function PlatformsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
         platformsFactory.init("platformsFactory");
-        ownerToPlatforms.init("v1ownerToPlatforms");
-        platforms.init("v1platforms");
-        syncPlatformToSymbolIdx.init("v1syncPlatformToSymbolIdx");
+        platforms_old.init("v1platforms"); /// NOTE: DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
+        platforms.init("v2platforms");
     }
 
     function init(address _contractsManager, address _platformsFactory) onlyContractOwner public returns (uint) {
         BaseManager.init(_contractsManager, "PlatformsManager");
 
+        /// NOTE: migration loop. WILL BE REMOVED IN THE NEXT RELEASE
+        if (store.count(platforms_old) > 0) {
+            StorageInterface.Iterator memory _iterator = store.listIterator(platforms_old);
+            while (store.canGetNextWithIterator(platforms_old, _iterator)) {
+                address _platform = store.getNextWithIterator(platforms_old, _iterator);
+                store.add(platforms, _platform);
+                store.remove(platforms_old, _platform);
+            }
+        }
+
         store.set(platformsFactory, _platformsFactory);
 
         return OK;
-    }
-
-    /**
-    * @dev Returns a platform owned by passed user by accessing it by index that is registered in the system.
-    *
-    * @param _user associated owner of platforms
-    * @param _idx index of a platform
-    *
-    * @return _platform platform address
-    */
-    function getPlatformForUserAtIndex(address _user, uint _idx) public constant returns (address _platform) {
-        _platform = store.get(ownerToPlatforms, bytes32(_user), _idx);
-    }
-
-    /**
-    * @dev Gets number of platform that are owned by passed user.
-    *
-    * @param _user associated owner of platforms
-    *
-    * @return number of platforms owned by user
-    */
-    function getPlatformsForUserCount(address _user) public constant returns (uint) {
-        return store.count(ownerToPlatforms, bytes32(_user));
-    }
-
-    /**
-    * @dev Gets list of platforms owned by passed user
-    *
-    * @param _user associated owner of platforms
-    *
-    * @return _platforms list of platforms owned by user
-    */
-    function getPlatformsMetadataForUser(address _user) public constant returns (address[] _platforms) {
-        _platforms = store.get(ownerToPlatforms, bytes32(_user));
     }
 
     /**
@@ -126,8 +85,26 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     *
     * @return `true` if it is registered, `false` otherwise
     */
-    function isPlatformAttached(address _platform) public constant returns (bool) {
+    function isPlatformAttached(address _platform) public view returns (bool) {
         return store.includes(platforms, _platform);
+    }
+
+    function getPlatformsCount() public view returns (uint) {
+        return store.count(platforms);
+    }
+
+    function getPlatforms(uint _start, uint _size) public view returns (address[] _platforms) {
+        uint _totalPlatformsCount = getPlatformsCount();
+        if (_start >= _totalPlatformsCount || _size == 0) {
+            return _platforms;
+        }
+        _platforms = new address[](_size);
+
+        uint _lastIdx = (_start + _size >= _totalPlatformsCount) ? _totalPlatformsCount : _start + _size;
+        uint _platformIdx = 0;
+        for (uint _idx = _start; _idx < _lastIdx; ++_idx) {
+            _platforms[_platformIdx++] = store.get(platforms, _idx);
+        }
     }
 
     /**
@@ -152,15 +129,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
             return _emitError(ERROR_PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS);
         }
 
-        resultCode = _syncAssetsInPlatformBeforeAttach(_platform);
-        if (resultCode != OK) {
-            return _emitError(resultCode);
-        }
-
-        _attachPlatformWithoutValidation(_platform, OwnedContract(_platform).contractOwner());
-        if (OK != ChronoBankPlatform(_platform).setupEventsHistory(getEventsHistory())) {
-            _emitError(ERROR_PLATFORMS_CANNOT_UPDATE_EVENTS_HISTORY_NOT_EVENTS_ADMIN);
-        }
+        store.add(platforms, _platform);
 
         _emitPlatformAttached(_platform, msg.sender);
 
@@ -190,44 +159,9 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
             return _emitError(ERROR_PLATFORMS_PLATFORM_DOES_NOT_EXIST);
         }
 
-        address _owner = OwnedContract(_platform).contractOwner();
-        if (!store.includes(ownerToPlatforms, bytes32(_owner), _platform)) {
-            return _emitError(ERROR_PLATFORMS_INCONSISTENT_INTERNAL_STATE);
-        }
-
-        resultCode = _syncAssetsInPlatformBeforeDetach(_platform);
-        if (resultCode != OK) {
-            return _emitError(resultCode);
-        }
-
-        if (OK != ChronoBankPlatform(_platform).setupEventsHistory(_platform)) {
-            _emitError(ERROR_PLATFORMS_CANNOT_UPDATE_EVENTS_HISTORY_NOT_EVENTS_ADMIN);
-        }
-
-        store.remove(ownerToPlatforms, bytes32(_owner), _platform);
         store.remove(platforms, _platform);
 
         _emitPlatformDetached(_platform, msg.sender);
-        return OK;
-    }
-
-    /**
-    * @dev Designed to keep PlatformsManager in consistent state when platform's owner might be changed.
-    * New owner of a platform should call this method to update a record about platform ownership.
-    * Until this operation would not be performed, then user of a platform couldn't do anything with this
-    * platform.
-    *
-    * @param _platform platform address
-    * @param _from previous owner of a platform*
-    *
-    * @return resultCode result code of an operation.
-    */
-    function replaceAssociatedPlatformFromOwner(address _platform, address _from)
-    onlyPlatformOwner(_platform)
-    onlyPreviousPlatformOwner(_platform, _from)
-    public returns (uint resultCode) {
-        store.add(ownerToPlatforms, bytes32(msg.sender), _platform);
-        store.remove(ownerToPlatforms, bytes32(_from), _platform);
         return OK;
     }
 
@@ -247,8 +181,8 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     returns (uint resultCode)
     {
         PlatformsFactory factory = PlatformsFactory(store.get(platformsFactory));
-        address _platform = factory.createPlatform(msg.sender, getEventsHistory(), this);
-        _attachPlatformWithoutValidation(_platform, msg.sender);
+        address _platform = factory.createPlatform(getEventsHistory());
+        store.add(platforms, _platform);
 
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));
         resultCode = assetsManager.requestTokenExtension(_platform);
@@ -266,98 +200,10 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     }
 
     /**
-    * @dev Sets up internal variables during a platform attach. PRIVATE
-    */
-    function _attachPlatformWithoutValidation(address _platform, address _owner) private {
-        store.add(ownerToPlatforms, bytes32(_owner), _platform);
-        store.add(platforms, _platform);
-    }
-
-    /**
     * @dev Checks if passed platform is owned by msg.sender. PRIVATE
     */
-    function _isPlatformOwner(address _platform) private constant returns (bool) {
+    function _isPlatformOwner(address _platform) private view returns (bool) {
         return OwnedContract(_platform).contractOwner() == msg.sender;
-    }
-
-    /**
-    * @dev Performs synchronization during attaching platforms. PRIVATE
-    */
-    function _syncAssetsInPlatformBeforeAttach(address _platform) private returns (uint resultCode) {
-        uint _lastSyncIdx = store.get(syncPlatformToSymbolIdx, _platform);
-        if (_lastSyncIdx == PLATFORM_DETACH_SYNC_DONE) {
-            _lastSyncIdx = 0;
-        }
-
-        if (_lastSyncIdx != PLATFORM_ATTACH_SYNC_DONE) {
-            AssetOwningListener _assetOwnershipResolver = AssetOwningListener(lookupManager("AssetOwnershipResolver"));
-            resultCode = _runThroughPlatform(_lastSyncIdx, _platform, _assetOwnershipResolver.assetOwnerAdded);
-            if (resultCode != OK) {
-                return resultCode;
-            }
-
-            store.set(syncPlatformToSymbolIdx, _platform, PLATFORM_ATTACH_SYNC_DONE);
-        }
-
-        return OK;
-    }
-
-    /**
-    * @dev Performs synchronization during detaching platforms. PRIVATE
-    */
-    function _syncAssetsInPlatformBeforeDetach(address _platform) private returns (uint resultCode) {
-        uint _lastSyncIdx = store.get(syncPlatformToSymbolIdx, _platform);
-        if (_lastSyncIdx == PLATFORM_ATTACH_SYNC_DONE) {
-            _lastSyncIdx = 0;
-        }
-
-        if (_lastSyncIdx != PLATFORM_DETACH_SYNC_DONE) {
-            AssetOwningListener _assetOwnershipResolver = AssetOwningListener(lookupManager("AssetOwnershipResolver"));
-            resultCode = _runThroughPlatform(_lastSyncIdx, _platform, _assetOwnershipResolver.assetOwnerRemoved);
-            if (resultCode != OK) {
-                return resultCode;
-            }
-
-            store.set(syncPlatformToSymbolIdx, _platform, PLATFORM_DETACH_SYNC_DONE);
-        }
-
-        return OK;
-    }
-
-    /**
-    * @dev Main synchronization method during attach/detach. PRIVATE
-    */
-    function _runThroughPlatform(uint _lastSyncIdx, address _platform, function (bytes32, address, address) external ownerUpdate) private returns (uint) {
-        ChronoBankAssetOwnershipManager _chronoBankPlatform = ChronoBankAssetOwnershipManager(_platform);
-        ChronoBankManagersRegistry _chronoBankRegistry = ChronoBankManagersRegistry(_platform);
-
-        uint _symbolsCount = _chronoBankPlatform.symbolsCount();
-        uint _holdersCount = _chronoBankRegistry.holdersCount();
-
-        bool _shouldInitHolders = true;
-        address[] memory _holders = new address[](_holdersCount);
-
-        for (; _lastSyncIdx < _symbolsCount; ++_lastSyncIdx) {
-            if (msg.gas < 100000) {
-                store.set(syncPlatformToSymbolIdx, _platform, _lastSyncIdx);
-                return ERROR_PLATFORMS_REPEAT_SYNC_IS_NOT_COMPLETED;
-            }
-
-            bytes32 _symbol = _chronoBankPlatform.symbols(_lastSyncIdx);
-            for (uint _holderIdx = 0; _holderIdx < _holdersCount; ++_holderIdx) {
-                if (_shouldInitHolders) {
-                    _holders[_holderIdx] = _chronoBankRegistry.holders(_holderIdx);
-                }
-
-                if (_chronoBankPlatform.hasAssetRights(_holders[_holderIdx], _symbol)) {
-                    ownerUpdate(_symbol, _platform, _holders[_holderIdx]);
-                }
-            }
-
-            _shouldInitHolders = false;
-        }
-
-        return OK;
     }
 
     /**
@@ -379,12 +225,5 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
 
     function _emitPlatformRequested(address _platform, address _tokenExtension, address sender) private {
         PlatformsManagerEmitter(getEventsHistory()).emitPlatformRequested(_platform, _tokenExtension, sender);
-    }
-
-    /**
-    * @dev DEPRECATED. WILL BE REMOVED IN FUTURE RELEASES
-    */
-    function _emitPlatformReplaced(address _fromPlatform, address _toPlatform) private {
-        PlatformsManagerEmitter(getEventsHistory()).emitPlatformReplaced(_fromPlatform, _toPlatform);
     }
 }

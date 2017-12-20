@@ -24,7 +24,6 @@ const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const StorageManager = artifacts.require('StorageManager.sol')
 const VotingManager = artifacts.require('VotingManager.sol')
 const PlatformTokenExtensionGatewayManager = artifacts.require('./PlatformTokenExtensionGatewayManager.sol')
-const AssetOwnershipDelegateResolver = artifacts.require('./AssetOwnershipDelegateResolver.sol')
 //const CrowdsaleManager = artifacts.require("./CrowdsaleManager.sol");
 
 const contractTypes = {
@@ -75,7 +74,6 @@ let multiEventsHistory
 let storageManager
 let crowdsaleManager
 let tokenExtensionGateway
-let assetOwnershipDelegateResolver
 
 let accounts
 let params
@@ -128,7 +126,6 @@ var setup = function (callback) {
       MultiEventsHistory.deployed(),
       StorageManager.deployed(),
       PlatformTokenExtensionGatewayManager.deployed(),
-      AssetOwnershipDelegateResolver.deployed()
       //CrowdsaleManager.deployed()
     ])
   }).then((instances) => {
@@ -186,7 +183,6 @@ var setup = function (callback) {
     module.exports.multiEventsHistory = multiEventsHistory
     module.exports.storageManager = storageManager
     module.exports.tokenExtensionGateway = tokenExtensionGateway
-    module.exports.assetOwnershipResolver = assetOwnershipDelegateResolver
 
     //module.exports.crowdsaleManager = crowdsaleManager
   }).then(() => {

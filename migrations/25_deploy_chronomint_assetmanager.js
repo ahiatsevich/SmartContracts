@@ -8,16 +8,11 @@ const ChronoBankPlatform = artifacts.require("./ChronoBankPlatform.sol");
 const MultiEventsHistory = artifacts.require("./MultiEventsHistory.sol");
 const ChronoBankTokenExtensionFactory = artifacts.require("./ChronoBankTokenExtensionFactory.sol")
 const PlatformsManager = artifacts.require("./PlatformsManager.sol")
-const AssetsManagerAggregations = artifacts.require('./AssetsManagerAggregations.sol')
 
 module.exports = function (deployer, network) {
-	var next = deployer
-	.then(() => deployer.deploy(AssetsManagerAggregations))
-
 	if (network !== "main") {
 		// AssetsManager deployment
-    	next
-		.then(() => deployer.link(AssetsManagerAggregations, AssetsManager))
+    	deployer
 		.then(() => deployer.deploy(AssetsManager, Storage.address, 'AssetsManager'))
         .then(() =>  StorageManager.deployed())
         .then(_storageManager => _storageManager.giveAccess(AssetsManager.address, 'AssetsManager'))

@@ -46,6 +46,29 @@ contract('LOC Manager', function(accounts) {
     const BALANCE_ETH = 1000;
     const fakeArgs = [0,0,0,0,0,0,0,0];
 
+    const getAllPlatformsForUser = async (user) => {
+        var userPlatforms = []
+        let platformsCount = await Setup.platformsManager.getPlatformsCount.call()
+        let allPlatforms = await Setup.platformsManager.getPlatforms.call(0, platformsCount)
+        let next = Promise.resolve()
+        for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
+            (function() {
+                const _platformAddr = allPlatforms[_platformIdx];
+                next = next.then(async () => {
+                    let _platform = await ChronoBankPlatform.at(_platformAddr)
+                    let _owner = await _platform.contractOwner.call()
+                    if (_owner === user) {
+                        userPlatforms.push(_platformAddr)
+                    }
+                })
+            })()
+        }
+
+        await next
+
+        return userPlatforms
+    }
+
     before('setup', function(done) {
         PendingManager.at(MultiEventsHistory.address).then((instance) => {
             eventor = instance;
@@ -62,18 +85,16 @@ contract('LOC Manager', function(accounts) {
             })
         })
 
-        it("Platform has correct LHT proxy address.", function() {
-            return Setup.platformsManager.getPlatformForUserAtIndex.call(owner, 0)
-            .then(_platformMeta => {
-                return Promise.resolve()
-                .then(() => ChronoBankPlatform.at(_platformMeta))
-                .then(_platform => _platform.proxies.call(SYMBOL2))
-            })
-            .then(_proxy => {
-                return Setup.erc20Manager.getTokenAddressBySymbol.call(SYMBOL2).then(_token => {
-                    assert.equal(_proxy, _token);
-                })
-            })
+        it.only("Platform has correct LHT proxy address.", async () => {
+            const platformAddresses = await getAllPlatformsForUser(owner)
+            assert.isAtLeast(platformAddresses.length, 1)
+
+            const platform = await ChronoBankPlatform.at(platformAddresses[0])
+            let gotProxyAddr = await platform.proxies.call(SYMBOL2)
+
+            let registeredProxyAddr = await Setup.erc20Manager.getTokenAddressBySymbol.call(SYMBOL2)
+
+            assert.equal(registeredProxyAddr, gotProxyAddr)
         })
 
         //
