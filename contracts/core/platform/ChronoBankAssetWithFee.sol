@@ -139,8 +139,8 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
     /// Fee amount is always rounded up.
     ///
     /// @return fee amount.
-    function calculateFee(uint _value) public view returns(uint) {
-        uint feeRaw = _value///feePercent;
+    function calculateFee(uint _value) public view returns (uint) {
+        uint feeRaw = _value / feePercent;
         return (feeRaw / 10000) + (feeRaw % 10000 == 0 ? 0 : 1);
     }
 }
