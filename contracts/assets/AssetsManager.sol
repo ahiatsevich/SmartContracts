@@ -41,11 +41,9 @@ contract EventsHistory {
 * @dev This contract contains statistics getters but they are deprecated and will be removed soon.
 *
 */
-contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetOwningListener, BaseManager, AssetsManagerEmitter {
+contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseManager, AssetsManagerEmitter {
 
     /** Error codes */
-
-    uint constant ERROR_ASSETS_MANAGER_SYMBOL_ALREADY_EXISTS = 30001;
     uint constant ERROR_ASSETS_MANAGER_INVALID_INVOCATION = 30002;
     uint constant ERROR_ASSETS_MANAGER_EXTENSION_ALREADY_EXISTS = 30003;
 
@@ -63,29 +61,11 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
     /** @dev collection of addresses of token extensions registered in AssetsManager */
     StorageInterface.OrderedAddressesSet tokenExtensions;
 
-    /** @dev mapping (address => set(address)) stands for (user => set(platform)) */
-    StorageInterface.AddressesSetMapping userToParticipatedPlatforms;
-
-    /** @dev mapping (bytes32 => set(bytes32)) stands for (hash(user,platform) => set(tokenSymbol)) */
-    StorageInterface.Bytes32SetMapping userWithPlatformToOwnedSymbols;
-
-    /** @dev mapping (bytes32 => set(address)) stands for (hash(tokenSymbol,platform) => set(user)) */
-    StorageInterface.AddressesSetMapping symbolWithPlatformToUsers;
-
     /**
     * @dev Guards methods for callers that are owners of a platform
     */
     modifier onlyPlatformOwner(address _platform) {
         if (OwnedContract(_platform).contractOwner() == msg.sender) {
-            _;
-        }
-    }
-
-    /**
-    * @dev Guards methods where caller is AssetOwnershipResolver
-    */
-    modifier onlyResolver {
-        if (lookupManager("AssetOwnershipResolver") == msg.sender) {
             _;
         }
     }
@@ -101,9 +81,6 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
         tokenFactory.init("tokenFactory");
         platformToExtension.init("v1platformToExtension");
         tokenExtensions.init("v1tokenExtensions");
-        userToParticipatedPlatforms.init("v1userToParticipatedPlatforms");
-        userWithPlatformToOwnedSymbols.init("v1userWithPlatformToOwnedSymbols");
-        symbolWithPlatformToUsers.init("v1symbolWithPlatformToUsers");
     }
 
     /**
@@ -179,55 +156,6 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
     */
     function containsTokenExtension(address _tokenExtension) public constant returns (bool) {
         return store.includes(tokenExtensions, _tokenExtension);
-    }
-
-    /**
-    * @dev Implements AssetOwningListener interface to provide an ability to track asset ownership
-    * from chronobank platforms.
-    * Should be called when new owner of a symbol is added in a platform.
-    * Allowed to be invoked only by AssetOwnershipResolver.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _symbol token's associated symbol
-    * @param _platform address of a platform where asset's ownership had changed
-    * @param _owner user which was added as an owner of the token
-    */
-    function assetOwnerAdded(bytes32 _symbol, address _platform, address _owner) onlyResolver public {
-        bytes32 _symbolKey = keccak256(_owner, _platform);
-        if (store.includes(userWithPlatformToOwnedSymbols, _symbolKey, _symbol)) {
-            return;
-        }
-
-        store.add(userToParticipatedPlatforms, bytes32(_owner), _platform);
-        store.add(userWithPlatformToOwnedSymbols, _symbolKey, _symbol);
-        store.add(symbolWithPlatformToUsers, keccak256(_symbol, _platform), _owner);
-    }
-
-    /**
-    * @dev Implements AssetOwningListener interface to provide an ability to track asset ownership
-    * from chronobank platforms.
-    * Should be called when an existed owner of a symbol is removed in a platform.
-    * Allowed to be invoked only by AssetOwnershipResolver.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _symbol token's associated symbol
-    * @param _platform address of a platform where asset's ownership had changed
-    * @param _owner user which was removed from the token's ownership
-    */
-    function assetOwnerRemoved(bytes32 _symbol, address _platform, address _owner) onlyResolver public {
-        bytes32 _symbolKey = keccak256(_owner, _platform);
-        if (!store.includes(userWithPlatformToOwnedSymbols, _symbolKey, _symbol)) {
-            return;
-        }
-
-        store.remove(userWithPlatformToOwnedSymbols, _symbolKey, _symbol);
-
-        if (store.count(userWithPlatformToOwnedSymbols, _symbolKey) == 0) {
-            store.remove(userToParticipatedPlatforms, bytes32(_owner), _platform);
-        }
-        store.remove(symbolWithPlatformToUsers, keccak256(_symbol, _platform), _owner);
     }
 
     /**
@@ -351,29 +279,6 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
     }
 
     /**
-    * @dev STATISTICS.
-    * Returns all platforms where user is participating: has an asset in ownership or owning the whole platform.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _user user
-    *
-    * @return _platforms list of platforms. Could contain repeated platforms so it is recommended to sift duplicates
-    */
-    function getParticipatingPlatformsForUser(address _user) public constant returns (address[] _platforms) {
-        PlatformsManagerInterface _platformsManager = PlatformsManagerInterface(lookupManager("PlatformsManager"));
-        uint _partricipatedPlatformsCount = store.count(userToParticipatedPlatforms, bytes32(_user));
-        _platforms = new address[](_platformsManager.getPlatformsForUserCount(_user) + _partricipatedPlatformsCount);
-        uint _platformIdx;
-        for (_platformIdx = 0; _platformIdx < _partricipatedPlatformsCount; ++_platformIdx) {
-            _platforms[_platformIdx] = store.get(userToParticipatedPlatforms, bytes32(_user), _platformIdx);
-        }
-        for (uint _userPlatformIdx = 0; _platformIdx < _platforms.length; ++_platformIdx) {
-            _platforms[_platformIdx] = _platformsManager.getPlatformForUserAtIndex(_user, _userPlatformIdx++);
-        }
-    }
-
-    /**
     * @dev Gets a number of assets in a platform where passed user is an owner.
     *
     * @param _platform hosting platform
@@ -396,93 +301,6 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, AssetO
     */
     function getAssetForOwnerAtIndex(address _platform, address _owner, uint _idx) public constant returns (bytes32) {
         return AssetsManagerAggregations.getAssetForOwnerAtIndex(getTokenExtension(_platform), _owner, _idx);
-    }
-
-    /**
-    * @dev STATISTICS.
-    * Returns number of assets that are in ownership by an owner regarding the whole system.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _owner user to be checked for ownership
-    *
-    * @return number of assets
-    */
-    function getSystemAssetsForOwnerCount(address _owner) public constant returns (uint) {
-        return AssetsManagerAggregations.getSystemAssetsForOwnerCount(store, userToParticipatedPlatforms, userWithPlatformToOwnedSymbols, _owner);
-    }
-
-    /**
-    * @dev STATISTICS.
-    * Returns assets that are in ownership by an owner regarding the whole system.
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _owner user to be checked for ownership
-    *
-    * @return {
-    *   _tokens: list of tokens found in ownership of passed user
-    *   _tokenPlatforms: associated platforms where found tokens are hosted
-    *   _totalSupplies: associated total supplies for returned tokens
-    * }
-    */
-    function getSystemAssetsForOwner(address _owner) public constant returns (address[] _tokens, address[] _tokenPlatforms, uint[] _totalSupplies) {
-        uint _assetsCount = getSystemAssetsForOwnerCount(_owner);
-        _tokens = new address[](_assetsCount);
-        _tokenPlatforms = new address[](_assetsCount);
-        _totalSupplies = new uint[](_assetsCount);
-
-        bytes32 _ownerKey = bytes32(_owner);
-        uint _platformsCount = store.count(userToParticipatedPlatforms, _ownerKey);
-        uint _assetPointer;
-        address _platform;
-        bytes32 _symbolKey;
-        for (uint _platformIdx = 0; _platformIdx < _platformsCount; ++_platformIdx) {
-            _platform = store.get(userToParticipatedPlatforms, _ownerKey, _platformIdx);
-            ChronoBankPlatformInterface _chronoBankPlatform = ChronoBankPlatformInterface(_platform);
-            _symbolKey = keccak256(_owner, _platform);
-            uint _symbolsCount = store.count(userWithPlatformToOwnedSymbols, _symbolKey);
-            if (_symbolsCount != 0) {
-                _tokenPlatforms[_assetPointer] = _platform;
-            }
-            bytes32 _symbol;
-            for (uint _symbolIdx = 0; _symbolIdx < _symbolsCount; ++_symbolIdx) {
-                _symbol = store.get(userWithPlatformToOwnedSymbols, _symbolKey, _symbolIdx);
-                _tokens[_assetPointer] = _chronoBankPlatform.proxies(_symbol);
-                _totalSupplies[_assetPointer] = _chronoBankPlatform.totalSupply(_symbol);
-                _assetPointer += 1;
-            }
-        }
-    }
-
-    /**
-    * @dev STATISTICS.
-    * Returns list of owners (managers) that owns or has access rights to a token with passed symbolWithPlatformToUsers
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _symbol symbol associated with some token
-    *
-    * @return _managers list of owners
-    */
-    function getManagersForAssetSymbol(bytes32 _symbol) public constant returns (address[] _managers) {
-        address _token = getAssetBySymbol(_symbol);
-        address _platform = ChronoBankAssetProxyInterface(_token).chronoBankPlatform();
-        _managers = store.get(symbolWithPlatformToUsers, keccak256(_symbol, _platform));
-    }
-
-    /**
-    * @dev STATISTICS.
-    * Returns owners (managers) that has something in ownership inside user's ecosystem (in platforms that passed user owns).
-    *
-    * DEPRECATED. WILL BE REMOVED IN NEXT RELEASES
-    *
-    * @param _owner user
-    *
-    * @return list of managers
-    */
-    function getManagers(address _owner) public constant returns (address[]) {
-        return AssetsManagerAggregations.getManagers(store, symbolWithPlatformToUsers, lookupManager("PlatformsManager"), _owner);
     }
 
     /** Helper functions */
