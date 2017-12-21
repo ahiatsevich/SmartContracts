@@ -10,6 +10,7 @@ const Reverter = require('./helpers/reverter')
 const bytes32 = require('./helpers/bytes32')
 const bytes32fromBase58 = require('./helpers/bytes32fromBase58')
 const eventsHelper = require('./helpers/eventsHelper')
+const utils = require('./helpers/utils')
 const ErrorsEnum = require("../common/errors")
 
 contract('ERC20 Manager', function(accounts) {
@@ -140,6 +141,16 @@ contract('ERC20 Manager', function(accounts) {
             });
         });
 
+        // it("doesn't  allow to add another ERC20 compatible token with new symbol by untrusted account", async () => {
+        //     let result = await Setup.erc20Manager.addToken.call(chronoBankAssetWithFeeProxy.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL, TOKEN_2_URL, TOKEN_2_DECIMALS, TOKEN_2_IPFS_HASH, TOKEN_2_SWARM_HASH, {from: owner5});
+        //     assert.equal(result, ErrorsEnum.UNAUTHORIZED);
+        //
+        //     let tx = await Setup.erc20Manager.addToken(chronoBankAssetWithFeeProxy.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL, TOKEN_2_URL, TOKEN_2_DECIMALS, TOKEN_2_IPFS_HASH, TOKEN_2_SWARM_HASH, {from: owner5});
+        //
+        //     let address = await Setup.erc20Manager.getTokenAddressBySymbol(TOKEN_2_SYMBOL);
+        //     assert.equal(address, utils.zeroAddress);
+        // });
+
         it("allow to add another ERC20 compatible token with new symbol", function() {
             return Setup.erc20Manager.addToken.call(chronoBankAssetWithFeeProxy.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL, TOKEN_2_URL, TOKEN_2_DECIMALS, TOKEN_2_IPFS_HASH, TOKEN_2_SWARM_HASH).then(_code => {
                 return Setup.erc20Manager.addToken(chronoBankAssetWithFeeProxy.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL, TOKEN_2_URL, TOKEN_2_DECIMALS, TOKEN_2_IPFS_HASH, TOKEN_2_SWARM_HASH, {
@@ -267,8 +278,8 @@ contract('ERC20 Manager', function(accounts) {
 
         it("doesn't allow to remove registered ERC20 compatible token by addrees by non owner", function() {
             let notRealOwner = owner1
-            return Setup.erc20Manager.removeToken.call(chronoBankAssetWithFeeProxy.address,{ from: notRealOwner }).then(_code => {
-                return Setup.erc20Manager.removeToken(chronoBankAssetWithFeeProxy.address, {
+            return Setup.erc20Manager.removeTokenByAddress.call(chronoBankAssetWithFeeProxy.address,{ from: notRealOwner }).then(_code => {
+                return Setup.erc20Manager.removeTokenByAddress(chronoBankAssetWithFeeProxy.address, {
                     from: notRealOwner,
                     gas: 3000000
                 }).then(tx => {
@@ -282,8 +293,8 @@ contract('ERC20 Manager', function(accounts) {
 
         it("allow to remove registered ERC20 compatible token by addrees by owner", function() {
             let realOwner = owner
-            return Setup.erc20Manager.removeToken.call(chronoBankAssetWithFeeProxy.address,{ from: realOwner }).then(_code => {
-                return Setup.erc20Manager.removeToken(chronoBankAssetWithFeeProxy.address, {
+            return Setup.erc20Manager.removeTokenByAddress.call(chronoBankAssetWithFeeProxy.address,{ from: realOwner }).then(_code => {
+                return Setup.erc20Manager.removeTokenByAddress(chronoBankAssetWithFeeProxy.address, {
                     from: realOwner,
                     gas: 3000000
                 }).then(tx => {
