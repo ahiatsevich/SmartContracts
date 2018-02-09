@@ -8,24 +8,26 @@ import {ChronoBankAssetWithFee as AssetWithFee} from "../core/platform/ChronoBan
 import {ChronoBankAssetWithCallback as AssetWithCallback} from "../core/platform/ChronoBankAssetWithCallback.sol";
 import {ChronoBankAssetWithFeeAndCallback as AssetWithFeeAndCallback} from "../core/platform/ChronoBankAssetWithFeeAndCallback.sol";
 
+
 contract AssetFactoryInterface {
     function createAsset() public returns (address);
 }
+
 
 contract OwnedAssetFactoryInterface {
     function createOwnedAsset(address owner) public returns (address);
 }
 
-/**
-* @title Implementation of token and proxy factory.
-* Creates instances of ChronoBank assets and proxies
-*/
+
+/// @title Implementation of token and proxy factory.
+/// Creates instances of ChronoBank assets and proxies
 contract TokenFactory is Owned {
     mapping (bytes32 => address) public factories;
 
-    /**
-    *  Add asset factory with given type to registry
-    */
+    /// @notice Add asset factory with given type to registry
+    /// @param _type type of factory
+    /// @param _factory address of factory contract
+    /// @return `true` if success, `false` otherwise
     function setAssetFactory(bytes32 _type, address _factory)
     public
     onlyContractOwner
@@ -35,24 +37,21 @@ contract TokenFactory is Owned {
         factories[_type] = _factory;
     }
 
-    /**
-    * @dev Creates ChronoBankAssetProxy contract
-    */
+    /// @notice Creates ChronoBankAssetProxy contract
     function createProxy() public returns (address) {
         return new AssetProxy();
     }
 
-    /**
-    * @dev Creates asset contract
-    */
+    /// @notice Creates asset contract
+    /// @param _type type of factory (and asset)
     function createAsset(bytes32 _type) public returns (address) {
         require(factories[_type] != 0x0);
         return AssetFactoryInterface(factories[_type]).createAsset();
     }
 
-    /**
-    * @dev Creates owned asset contract
-    */
+    /// @notice Creates owned asset contract
+    /// @param _type type of factory (and asset)
+    /// @param _owner user that will be owner of an asset
     function createOwnedAsset(bytes32 _type, address _owner)
     public
     returns (address)
@@ -63,25 +62,21 @@ contract TokenFactory is Owned {
     }
 }
 
-/**
-* @dev Creates ChronoBankAsset contract
-*/
+
+/// @title Creates ChronoBankAsset contract
 contract ChronoBankAssetFactory is AssetFactoryInterface {
-    /**
-    * TODO: doc
-    */
-    function createAsset() returns (address) {
+
+    /// @notice Creates standart asset without any tastes
+    function createAsset() public returns (address) {
         return new Asset();
     }
 }
 
-/**
-* @dev Creates ChronoBankAssetWithFee contract
-*/
+
+/// @title Creates ChronoBankAssetWithFee contract
 contract ChronoBankAssetWithFeeFactory is OwnedAssetFactoryInterface {
-    /**
-    * TODO: doc
-    */
+
+    /// @notice Creates owned asset with provided address as an owner
     function createOwnedAsset(address _owner)
     public
     returns (address)
@@ -92,13 +87,11 @@ contract ChronoBankAssetWithFeeFactory is OwnedAssetFactoryInterface {
     }
 }
 
-/**
-* @dev Creates ChronoBankAssetWithCallback contract
-*/
+
+/// @title Creates ChronoBankAssetWithCallback contract
 contract ChronoBankAssetWithCallbackFactory is OwnedAssetFactoryInterface {
-    /**
-    * TODO: doc
-    */
+
+    /// @notice Creates owned asset with callback and with provided address as an owner
     function createOwnedAsset(address _owner)
     public
     returns (address)
@@ -109,13 +102,11 @@ contract ChronoBankAssetWithCallbackFactory is OwnedAssetFactoryInterface {
     }
 }
 
-/**
-* @dev Creates ChronoBankAssetWithFeeAndCallback contract
-*/
+
+/// @title Creates ChronoBankAssetWithFeeAndCallback contract
 contract ChronoBankAssetWithFeeAndCallbackFactory is OwnedAssetFactoryInterface {
-    /**
-    * TODO: doc
-    */
+
+    /// @notice Creates owned asset with fee and callback and with provided address as an owner
     function createOwnedAsset(address _owner)
     public
     returns (address)
