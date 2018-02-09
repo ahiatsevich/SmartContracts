@@ -47,7 +47,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _symbol assigned symbol.
     /// @param _name assigned name.
     /// @return success.
-    function init(ChronoBankPlatform _chronoBankPlatform, string _symbol, string _name) public returns(bool) {
+    function init(ChronoBankPlatform _chronoBankPlatform, string _symbol, string _name) public returns (bool) {
         if (address(chronoBankPlatform) != 0x0) {
             return false;
         }
@@ -80,27 +80,27 @@ contract ChronoBankAssetProxy is ERC20 {
 
     /// Returns asset implementation contract for current caller.
     /// @return asset implementation contract.
-    function _getAsset() internal view returns(ChronoBankAsset) {
+    function _getAsset() internal view returns (ChronoBankAsset) {
         return ChronoBankAsset(getVersionFor(msg.sender));
     }
 
     /// Returns asset total supply.
     /// @return asset total supply.
-    function totalSupply() public view returns(uint) {
+    function totalSupply() public view returns (uint) {
         return _getAsset().__totalSupply();
     }
 
     /// Returns asset total supply.
     /// This method is designed to be called by proxy only.
     /// @return asset total supply.
-    function __totalSupply() public view returns(uint) {
+    function __totalSupply() public view returns (uint) {
         return chronoBankPlatform.totalSupply(smbl);
     }
 
     /// Returns asset balance for a particular holder.
     /// @param _owner holder address.
     /// @return holder balance.
-    function balanceOf(address _owner) public view returns(uint) {
+    function balanceOf(address _owner) public view returns (uint) {
         return _getAsset().__balanceOf(_owner);
     }
 
@@ -108,7 +108,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// This method is designed to be called by proxy only.
     /// @param _owner holder address.
     /// @return holder balance.
-    function __balanceOf(address _owner) public view returns(uint) {
+    function __balanceOf(address _owner) public view returns (uint) {
         return chronoBankPlatform.balanceOf(_owner, smbl);
     }
 
@@ -116,7 +116,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _from holder that allowed spending.
     /// @param _spender holder that is allowed to spend.
     /// @return holder to spender allowance.
-    function allowance(address _from, address _spender) public view returns(uint) {
+    function allowance(address _from, address _spender) public view returns (uint) {
         return _getAsset().__allowance(_from, _spender);
     }
 
@@ -125,20 +125,20 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _from holder that allowed spending.
     /// @param _spender holder that is allowed to spend.
     /// @return holder to spender allowance.
-    function __allowance(address _from, address _spender) public view returns(uint) {
+    function __allowance(address _from, address _spender) public view returns (uint) {
         return chronoBankPlatform.allowance(_from, _spender, smbl);
     }
 
     /// Returns asset decimals.
     /// @return asset decimals.
-    function decimals() public view returns(uint8) {
+    function decimals() public view returns (uint8) {
         return _getAsset().__baseUnit();
     }
 
     /// Returns asset decimals.
     /// This method is designed to be called by proxy only.
     /// @return asset decimals.
-    function __decimals() public view returns(uint8) {
+    function __decimals() public view returns (uint8) {
         return chronoBankPlatform.baseUnit(smbl);
     }
 
@@ -146,7 +146,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _to holder address to give to.
     /// @param _value amount to transfer.
     /// @return success.
-    function transfer(address _to, uint _value) public returns(bool) {
+    function transfer(address _to, uint _value) public returns (bool) {
         if (_to != 0x0) {
           return _transferWithReference(_to, _value, "");
         }
@@ -160,7 +160,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _value amount to transfer.
     /// @param _reference transfer comment to be included in a platform's Transfer event.
     /// @return success.
-    function transferWithReference(address _to, uint _value, string _reference) public returns(bool) {
+    function transferWithReference(address _to, uint _value, string _reference) public returns (bool) {
         if (_to != 0x0) {
             return _transferWithReference(_to, _value, _reference);
         }
@@ -172,7 +172,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Resolves asset implementation contract for the caller and forwards there arguments along with
     /// the caller address.
     /// @return success.
-    function _transferWithReference(address _to, uint _value, string _reference) internal returns(bool) {
+    function _transferWithReference(address _to, uint _value, string _reference) internal returns (bool) {
         return _getAsset().__transferWithReference(_to, _value, _reference, msg.sender);
     }
 
@@ -183,7 +183,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _reference transfer comment to be included in a platform's Transfer event.
     /// @param _sender initial caller.
     /// @return success.
-    function __transferWithReference(address _to, uint _value, string _reference, address _sender) public onlyAccess(_sender) returns(bool) {
+    function __transferWithReference(address _to, uint _value, string _reference, address _sender) public onlyAccess(_sender) returns (bool) {
         return chronoBankPlatform.proxyTransferWithReference(_to, _value, smbl, _reference, _sender) == OK;
     }
 
@@ -192,7 +192,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _to holder address to give to.
     /// @param _value amount to transfer.
     /// @return success.
-    function transferFrom(address _from, address _to, uint _value) public returns(bool) {
+    function transferFrom(address _from, address _to, uint _value) public returns (bool) {
         if (_to != 0x0) {
             return _getAsset().__transferFromWithReference(_from, _to, _value, "", msg.sender);
          }
@@ -209,7 +209,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _reference transfer comment to be included in a platform's Transfer event.
     /// @param _sender initial caller.
     /// @return success.
-    function __transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) public onlyAccess(_sender) returns(bool) {
+    function __transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) public onlyAccess(_sender) returns (bool) {
         return chronoBankPlatform.proxyTransferFromWithReference(_from, _to, _value, smbl, _reference, _sender) == OK;
     }
 
@@ -217,7 +217,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _spender holder address to set allowance to.
     /// @param _value amount to allow.
     /// @return success.
-    function approve(address _spender, uint _value) public returns(bool) {
+    function approve(address _spender, uint _value) public returns (bool) {
         if (_spender != 0x0) {
              return _getAsset().__approve(_spender, _value, msg.sender);
         }
@@ -232,7 +232,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// @param _value amount to allow.
     /// @param _sender initial caller.
     /// @return success.
-    function __approve(address _spender, uint _value, address _sender) public onlyAccess(_sender) returns(bool) {
+    function __approve(address _spender, uint _value, address _sender) public onlyAccess(_sender) returns (bool) {
         return chronoBankPlatform.proxyApprove(_spender, _value, smbl, _sender) == OK;
     }
 
@@ -250,7 +250,7 @@ contract ChronoBankAssetProxy is ERC20 {
 
     /// Resolves asset implementation contract for the caller and forwards there transaction data,
     /// along with the value. This allows for proxy interface growth.
-    function () payable {
+    function () payable public {
         _getAsset().__process.value(msg.value)(msg.data, msg.sender);
     }
 
@@ -283,25 +283,25 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Returns asset implementation contract address assigned to sender.
     /// @param _sender sender address.
     /// @return asset implementation contract address.
-    function getVersionFor(address _sender) public view returns(address) {
+    function getVersionFor(address _sender) public view returns (address) {
         return userOptOutVersion[_sender] == 0 ? latestVersion : userOptOutVersion[_sender];
     }
 
     /// Returns current asset implementation contract address.
     /// @return asset implementation contract address.
-    function getLatestVersion() public view returns(address) {
+    function getLatestVersion() public view returns (address) {
         return latestVersion;
     }
 
     /// Returns proposed next asset implementation contract address.
     /// @return asset implementation contract address.
-    function getPendingVersion() public view returns(address) {
+    function getPendingVersion() public view returns (address) {
         return pendingVersion;
     }
 
     /// Returns upgrade freeze-time start.
     /// @return freeze-time start.
-    function getPendingVersionTimestamp() public view returns(uint) {
+    function getPendingVersionTimestamp() public view returns (uint) {
         return pendingVersionTimestamp;
     }
 
@@ -310,7 +310,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Note: freeze-time should not be applied for the initial setup.
     /// @param _newVersion asset implementation contract address.
     /// @return success.
-    function proposeUpgrade(address _newVersion) public onlyAssetOwner() returns(bool) {
+    function proposeUpgrade(address _newVersion) public onlyAssetOwner() returns (bool) {
         // Should not already be in the upgrading process.
         if (pendingVersion != 0x0) {
             return false;
@@ -333,7 +333,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Cancel the pending upgrade process.
     /// Can only be called by current asset owner.
     /// @return success.
-    function purgeUpgrade() public onlyAssetOwner() returns(bool) {
+    function purgeUpgrade() public onlyAssetOwner() returns (bool) {
         if (pendingVersion == 0x0) {
             return false;
         }
@@ -345,7 +345,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Finalize an upgrade process setting new asset implementation contract address.
     /// Can only be called after an upgrade freeze-time.
     /// @return success.
-    function commitUpgrade() public returns(bool) {
+    function commitUpgrade() public returns (bool) {
         if (pendingVersion == 0x0) {
             return false;
         }
@@ -361,7 +361,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Disagree with proposed upgrade, and stick with current asset implementation
     /// until further explicit agreement to upgrade.
     /// @return success.
-    function optOut() public returns(bool) {
+    function optOut() public returns (bool) {
         if (userOptOutVersion[msg.sender] != 0x0) {
             return false;
         }
@@ -372,7 +372,7 @@ contract ChronoBankAssetProxy is ERC20 {
     /// Implicitly agree to upgrade to current and future asset implementation upgrades,
     /// until further explicit disagreement.
     /// @return success.
-    function optIn() public returns(bool) {
+    function optIn() public returns (bool) {
         delete userOptOutVersion[msg.sender];
         return true;
     }

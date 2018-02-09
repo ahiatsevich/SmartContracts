@@ -42,7 +42,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// @param _proxy asset proxy contract address.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function init(ChronoBankAssetProxy _proxy) public returns(bool) {
+    function init(ChronoBankAssetProxy _proxy) public returns (bool) {
         if (address(proxy) != 0x0) {
             return false;
         }
@@ -51,13 +51,13 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     }
 
     /// Restricts a given address to transfer/receive assets.
-    function restrict(address _restricted) onlyAuthorized returns (bool) {
+    function restrict(address _restricted) onlyAuthorized public returns (bool) {
         blacklist[_restricted] = true;
         return true;
     }
 
     /// Lifts the ban on transfers for given address
-    function unrestrict(address _unrestricted) onlyAuthorized returns (bool) {
+    function unrestrict(address _unrestricted) onlyAuthorized public returns (bool) {
         blacklist[_unrestricted] = false;
         return true;
     }
@@ -66,7 +66,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Only admin of an asset is allowed to execute this method.
     /// @param _isStoped tells, will asset be stoped or resumed
     /// @return success.
-    function stop(bool _isStoped) onlyAuthorized returns (bool) {
+    function stop(bool _isStoped) onlyAuthorized public returns (bool) {
         isStoped = _isStoped;
         return true;
     }
@@ -75,7 +75,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __transferWithReference(address _to, uint _value, string _reference, address _sender) public onlyProxy() returns(bool) {
+    function __transferWithReference(address _to, uint _value, string _reference, address _sender) public onlyProxy() returns (bool) {
         return _transferWithReference(_to, _value, _reference, _sender);
     }
 
@@ -83,7 +83,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Checks whether _from/_sender are not in blacklist.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _transferWithReference(address _to, uint _value, string _reference, address _sender) internal returns(bool) {
+    function _transferWithReference(address _to, uint _value, string _reference, address _sender) internal returns (bool) {
         if (isStoped) {
             return false;
         }
@@ -99,7 +99,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) public onlyProxy() returns(bool) {
+    function __transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) public onlyProxy() returns (bool) {
         return _transferFromWithReference(_from, _to, _value, _reference, _sender);
     }
 
@@ -107,7 +107,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Checks whether _from/_sender are not in blacklist.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) internal returns(bool) {
+    function _transferFromWithReference(address _from, address _to, uint _value, string _reference, address _sender) internal returns (bool) {
         if (isStoped) {
             return false;
         }
@@ -123,14 +123,14 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __approve(address _spender, uint _value, address _sender) public onlyProxy() returns(bool) {
+    function __approve(address _spender, uint _value, address _sender) public onlyProxy() returns (bool) {
         return _approve(_spender, _value, _sender);
     }
 
     /// Calls back without modifications.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _approve(address _spender, uint _value, address _sender) internal returns(bool) {
+    function _approve(address _spender, uint _value, address _sender) internal returns (bool) {
         return proxy.__approve(_spender, _value, _sender);
     }
 
@@ -138,14 +138,14 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __totalSupply() public view returns(uint) {
+    function __totalSupply() public view returns (uint) {
         return _totalSupply();
     }
 
     /// Calls back without modifications.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _totalSupply() public view returns(uint) {
+    function _totalSupply() public view returns (uint) {
         return proxy.__totalSupply();
     }
 
@@ -153,14 +153,14 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __balanceOf(address _owner) public view returns(uint) {
+    function __balanceOf(address _owner) public view returns (uint) {
         return _balanceOf(_owner);
     }
 
     /// Calls back without modifications.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _balanceOf(address _owner) public view returns(uint) {
+    function _balanceOf(address _owner) public view returns (uint) {
         return proxy.__balanceOf(_owner);
     }
 
@@ -168,14 +168,14 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __allowance(address _from, address _spender) public view returns(uint) {
+    function __allowance(address _from, address _spender) public view returns (uint) {
         return _allowance(_from, _spender);
     }
 
     /// Calls back without modifications.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _allowance(address _from, address _spender) public view returns(uint) {
+    function _allowance(address _from, address _spender) public view returns (uint) {
         return proxy.__allowance(_from, _spender);
     }
 
@@ -183,14 +183,14 @@ contract ChronoBankAsset is ChronoBankAssetInterface {
     /// Can only be called by assigned asset proxy.
     /// @return success.
     /// @dev function is final, and must not be overridden.
-    function __baseUnit() public view returns(uint8) {
+    function __baseUnit() public view returns (uint8) {
         return _baseUnit();
     }
 
     /// Calls back without modifications.
     /// @return success.
     /// @dev function is virtual, and meant to be overridden.
-    function _baseUnit() public view returns(uint8) {
+    function _baseUnit() public view returns (uint8) {
         return proxy.__baseUnit();
     }
 }
