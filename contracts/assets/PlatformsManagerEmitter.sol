@@ -23,11 +23,6 @@ contract PlatformsManagerEmitter is MultiEventsHistoryAdapter {
     event PlatformRequested(address indexed self, address platform, address tokenExtension, address indexed by);
 
     /**
-    * @dev DEPRECATED. WILL BE REMOVED IN FUTURE RELEASES
-    */
-    event PlatformReplaced(address indexed self, address fromPlatform, address toPlatform);
-
-    /**
     * @dev Event for errors
     */
     event Error(address indexed self, uint errorCode);
@@ -37,26 +32,19 @@ contract PlatformsManagerEmitter is MultiEventsHistoryAdapter {
     * Emitting events
     */
 
-    function emitPlatformAttached( address _platform, address _by) {
+    function emitPlatformAttached( address _platform, address _by) public {
         PlatformAttached(_self(), _platform, _by);
     }
 
-    function emitPlatformDetached( address _platform, address _by) {
+    function emitPlatformDetached( address _platform, address _by) public {
         PlatformDetached(_self(), _platform, _by);
     }
 
-    function emitPlatformRequested( address _platform, address _tokenExtension, address _by) {
+    function emitPlatformRequested( address _platform, address _tokenExtension, address _by) public {
         PlatformRequested(_self(), _platform, _tokenExtension, _by);
     }
 
-    /**
-    * @dev DEPRECATED. WILL BE REMOVED IN FUTURE RELEASES
-    */
-    function emitPlatformReplaced( address _fromPlatform, address _toPlatform) {
-        PlatformReplaced(_self(), _fromPlatform, _toPlatform);
-    }
-
-    function emitError(uint _errorCode) {
+    function emitError(uint _errorCode) public {
         Error(_self(), _errorCode);
     }
 }

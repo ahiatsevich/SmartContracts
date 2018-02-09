@@ -17,14 +17,31 @@ contract("PlatformsManager", function (accounts) {
     const createPlatform = async (platformOwner) => {
         let createdPlatform = await ChronoBankPlatform.new({ from: platformOwner })
         await createdPlatform.setupEventsHistory(Setup.multiEventsHistory.address, { from: platformOwner })
-        await createdPlatform.setupEventsAdmin(Setup.platformsManager.address, { from: platformOwner })
         await Setup.multiEventsHistory.authorize(createdPlatform.address, { from: systemOwner })
         return createdPlatform
     }
 
     const getAllPlatformsForUser = async (user) => {
-        var platformsMetas = await Setup.platformsManager.getPlatformsMetadataForUser.call(user)
-        return platformsMetas
+        var userPlatforms = []
+        let platformsCount = await Setup.platformsManager.getPlatformsCount.call()
+        let allPlatforms = await Setup.platformsManager.getPlatforms.call(0, platformsCount)
+        let next = Promise.resolve()
+        for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
+            (function() {
+                const _platformAddr = allPlatforms[_platformIdx];
+                next = next.then(async () => {
+                    let _platform = await ChronoBankPlatform.at(_platformAddr)
+                    let _owner = await _platform.contractOwner.call()
+                    if (_owner === user) {
+                        userPlatforms.push(_platformAddr)
+                    }
+                })
+            })()
+        }
+
+        await next
+
+        return userPlatforms
     }
 
     before("setup", function(done) {
@@ -57,8 +74,7 @@ contract("PlatformsManager", function (accounts) {
         it("revert", reverter.revert)
 
         it("should create a new platform for an user", async () => {
-            let emptyPlatformsCount = await Setup.platformsManager.getPlatformsForUserCount.call(owner)
-            assert.equal(emptyPlatformsCount, 0)
+            let beforePlatformsCount = await Setup.platformsManager.getPlatformsCount.call()
 
             let createPlatformTx = await Setup.platformsManager.createPlatform({from: owner })
             let createPlatformEvent = eventsHelper.extractEvents(createPlatformTx, "PlatformRequested")[0]
@@ -68,8 +84,8 @@ contract("PlatformsManager", function (accounts) {
             let platform = await ChronoBankPlatform.at(createPlatformEvent.args.platform)
             await platform.claimContractOwnership({ from: owner })
 
-            let existedPlatformsCount = await Setup.platformsManager.getPlatformsForUserCount.call(owner)
-            assert.equal(existedPlatformsCount, 1)
+            let existedPlatformsCount = await Setup.platformsManager.getPlatformsCount.call()
+            assert.equal(existedPlatformsCount.toNumber(), beforePlatformsCount.toNumber() + 1)
         })
 
         it("revert", reverter.revert)
@@ -136,62 +152,6 @@ contract("PlatformsManager", function (accounts) {
         })
 
         it("revert", reverter.revert)
-    })
-
-    context("update platform ownership", function () {
-        let owner = owner1
-        let otherOwner = owner2
-        let nonOwner = owner3
-        let platform
-
-        it("prepare", async () => {
-            platform = await createPlatform(otherOwner)
-            let successAttachResultCode = await Setup.platformsManager.attachPlatform.call(platform.address, { from: otherOwner })
-            assert.equal(successAttachResultCode, ErrorsEnum.OK)
-            await Setup.platformsManager.attachPlatform(platform.address, { from: otherOwner })
-        })
-        it("snapshot", reverter.snapshot)
-
-        it("should update an associated platform ownership when platform contract ownership has changed", async () => {
-            await platform.changeContractOwnership(owner, { from: otherOwner })
-            await platform.claimContractOwnership({ from: owner })
-
-            let successAssociatedPlatformChangeResultCode = await Setup.platformsManager.replaceAssociatedPlatformFromOwner.call(platform.address, otherOwner, { from: owner })
-            assert.equal(successAssociatedPlatformChangeResultCode, ErrorsEnum.OK)
-        })
-        it("revert", reverter.revert)
-
-        it("should fail on detaching a platform if no accociated ownership changes were made after contract ownership changes", async () => {
-            await platform.changeContractOwnership(owner, { from: otherOwner })
-            await platform.claimContractOwnership({ from: owner })
-
-            var failedDetachResultCode = await Setup.platformsManager.detachPlatform.call(platform.address, { from: owner })
-            assert.equal(failedDetachResultCode, ErrorsEnum.PLATFORMS_INCONSISTENT_INTERNAL_STATE)
-
-            failedDetachResultCode = await Setup.platformsManager.detachPlatform.call(platform.address, { from: otherOwner })
-            assert.equal(failedDetachResultCode, ErrorsEnum.UNAUTHORIZED)
-        })
-        it("revert", reverter.revert)
-
-        it("should fail on updating associated platform ownership when performed by non-contract owner of the platform", async () => {
-            await platform.changeContractOwnership(owner, { from: otherOwner })
-            await platform.claimContractOwnership({ from: owner })
-
-            let failedAssociatedPlatformChangeResultCode = await Setup.platformsManager.replaceAssociatedPlatformFromOwner.call(platform.address, otherOwner, { from: nonOwner })
-            assert.equal(failedAssociatedPlatformChangeResultCode, ErrorsEnum.UNAUTHORIZED)
-        })
-        it("revert", reverter.revert)
-
-        it("should be successful on updating associated platform ownership when performed by new platform owner", async () => {
-            await platform.changeContractOwnership(owner, { from: otherOwner })
-            await platform.claimContractOwnership({ from: owner })
-
-            let successAssociatedPlatformChangeResultCode = await Setup.platformsManager.replaceAssociatedPlatformFromOwner.call(platform.address, otherOwner, { from: owner })
-            assert.equal(successAssociatedPlatformChangeResultCode, ErrorsEnum.OK)
-        })
-        it("revert", function (done) {
-            reverter.revert(done, reverter.snapshotId - 1)
-        })
     })
 
     context("properties check", function () {

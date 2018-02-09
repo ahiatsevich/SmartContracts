@@ -21,22 +21,23 @@ module.exports = function(deployer, network, accounts) {
         var platforms = []
 
         return Promise.resolve()
-        .then(() => {
-            return Promise.resolve()
-            .then(() => platformsManager.getPlatformsForUserCount.call(systemOwner))
-            .then(_numberOfPlatforms => {
-                var next = Promise.resolve()
-                for (var _platformIdx = 0; _platformIdx < _numberOfPlatforms; ++_platformIdx) {
-                    (function () {
-                        let idx = _platformIdx;
-                        next = next
-                        .then(() => platformsManager.getPlatformForUserAtIndex.call(systemOwner, idx))
-                        .then(_platformAddr => platforms.push(_platformAddr))
-                    })()
-                }
-
-                return next
-            })
+        .then(async () => {
+            let platformsCount = await platformsManager.getPlatformsCount.call()
+            let allPlatforms = await platformsManager.getPlatforms.call(0, platformsCount)
+            let next = Promise.resolve()
+            for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
+                (function() {
+                    const _platformAddr = allPlatforms[_platformIdx];
+                    next = next.then(async () => {
+                        let _platform = await ChronoBankPlatform.at(_platformAddr)
+                        let _owner = await _platform.contractOwner.call()
+                        if (_owner === systemOwner) {
+                            platforms.push(_platformAddr)
+                        }
+                    })
+                })()
+            }
+            return next
         })
         .then(() => {
             return Promise.resolve()

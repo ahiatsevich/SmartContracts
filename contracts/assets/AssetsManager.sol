@@ -11,7 +11,7 @@ import "./TokenManagementInterface.sol";
 import "./AssetsManagerInterface.sol";
 import "./AssetsManagerEmitter.sol";
 import "./PlatformsManagerInterface.sol";
-import "../core/lib/AssetsManagerAggregations.sol";
+
 
 contract OwnedContract {
     address public contractOwner;
@@ -44,8 +44,10 @@ contract EventsHistory {
 contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseManager, AssetsManagerEmitter {
 
     /** Error codes */
-    uint constant ERROR_ASSETS_MANAGER_INVALID_INVOCATION = 30002;
-    uint constant ERROR_ASSETS_MANAGER_EXTENSION_ALREADY_EXISTS = 30003;
+
+    uint constant ERROR_ASSETS_MANAGER_SCOPE = 30000;
+    uint constant ERROR_ASSETS_MANAGER_INVALID_INVOCATION = ERROR_ASSETS_MANAGER_SCOPE + 2;
+    uint constant ERROR_ASSETS_MANAGER_EXTENSION_ALREADY_EXISTS = ERROR_ASSETS_MANAGER_SCOPE + 3;
 
     /** Storage keys */
 
@@ -76,7 +78,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     * @param _store link to a global storage
     * @param _crate namespace in a storage
     */
-    function AssetsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) {
+    function AssetsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
         tokenExtensionFactory.init("tokenExtensionFactory");
         tokenFactory.init("tokenFactory");
         platformToExtension.init("v1platformToExtension");
@@ -93,7 +95,15 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return result code of an operation. `OK` if all went well
     */
-    function init(address _contractsManager, address _tokenExtensionFactory, address _tokenFactory) onlyContractOwner public returns (uint) {
+    function init(
+        address _contractsManager,
+        address _tokenExtensionFactory,
+        address _tokenFactory
+    )
+    onlyContractOwner
+    public
+    returns (uint)
+    {
         BaseManager.init(_contractsManager, "AssetsManager");
         setTokenExtensionFactory(_tokenExtensionFactory);
         setTokenFactory(_tokenFactory);
@@ -106,7 +116,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return address of a factory
     */
-    function getTokenExtensionFactory() public constant returns (address) {
+    function getTokenExtensionFactory() public view returns (address) {
         return store.get(tokenExtensionFactory);
     }
 
@@ -129,7 +139,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return address of a factory
     */
-    function getTokenFactory() public constant returns (address) {
+    function getTokenFactory() public view returns (address) {
         return store.get(tokenFactory);
     }
 
@@ -154,7 +164,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return `true` if a token extension is inside AssetsManager, `false` otherwise
     */
-    function containsTokenExtension(address _tokenExtension) public constant returns (bool) {
+    function containsTokenExtension(address _tokenExtension) public view returns (bool) {
         return store.includes(tokenExtensions, _tokenExtension);
     }
 
@@ -171,7 +181,11 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     * @return result code of an operation. ERROR_ASSETS_MANAGER_EXTENSION_ALREADY_EXISTS, ERROR_ASSETS_MANAGER_EXTENSION_ALREADY_EXISTS
     *           might be returned.
     */
-    function registerTokenExtension(address _tokenExtension) onlyPlatformOwner(TokenManagementInterface(_tokenExtension).platform()) public returns (uint) {
+    function registerTokenExtension(address _tokenExtension)
+    onlyPlatformOwner(TokenManagementInterface(_tokenExtension).platform())
+    public
+    returns (uint)
+    {
         if (store.includes(tokenExtensions, _tokenExtension)) {
             return _emitError(ERROR_ASSETS_MANAGER_EXTENSION_ALREADY_EXISTS);
         }
@@ -196,7 +210,11 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return result code of an operation. ERROR_ASSETS_MANAGER_INVALID_INVOCATION might be returned.
     */
-    function unregisterTokenExtension(address _tokenExtension) onlyPlatformOwner(TokenManagementInterface(_tokenExtension).platform()) public returns (uint) {
+    function unregisterTokenExtension(address _tokenExtension)
+    onlyPlatformOwner(TokenManagementInterface(_tokenExtension).platform())
+    public
+    returns (uint)
+    {
         if (!store.includes(tokenExtensions, _tokenExtension)) {
             return _emitError(ERROR_ASSETS_MANAGER_INVALID_INVOCATION);
         }
@@ -240,7 +258,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return address of found token extension
     */
-    function getTokenExtension(address _platform) public constant returns (address) {
+    function getTokenExtension(address _platform) public view returns (address) {
         return store.get(platformToExtension, _platform);
     }
 
@@ -252,8 +270,12 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return `true` if a user is an owner, `false` otherwise
     */
-    function isAssetOwner(bytes32 _symbol, address _user) public constant returns (bool) {
-        return AssetsManagerAggregations.isAssetOwner(store, platformToExtension, _symbol, getAssetBySymbol(_symbol), _user);
+    function isAssetOwner(bytes32 _symbol, address _user) public view returns (bool) {
+        address _token = getAssetBySymbol(_symbol);
+        address _platform = ChronoBankAssetProxyInterface(_token).chronoBankPlatform();
+        address _tokenExtension = getTokenExtension(_platform);
+        address _assetOwnershipManager = TokenManagementInterface(_tokenExtension).getAssetOwnershipManager();
+        return ChronoBankAssetOwnershipManager(_assetOwnershipManager).hasAssetRights(_user, _symbol);
     }
 
     /**
@@ -263,7 +285,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return `true` if token with passed symbol exists, `false` otherwise
     */
-    function isAssetSymbolExists(bytes32 _symbol) public constant returns (bool) {
+    function isAssetSymbolExists(bytes32 _symbol) public view returns (bool) {
         return getAssetBySymbol(_symbol) != 0x0;
     }
 
@@ -274,7 +296,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return address of a token with passed symbol
     */
-    function getAssetBySymbol(bytes32 _symbol) public constant returns (address) {
+    function getAssetBySymbol(bytes32 _symbol) public view returns (address) {
         return ERC20ManagerInterface(lookupManager("ERC20Manager")).getTokenAddressBySymbol(_symbol);
     }
 
@@ -286,8 +308,17 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return a number of assets in user's ownership
     */
-    function getAssetsForOwnerCount(address _platform, address _owner) public constant returns (uint) {
-        return AssetsManagerAggregations.getAssetsForOwnerCount(getTokenExtension(_platform), _owner);
+    function getAssetsForOwnerCount(address _platform, address _owner) public view returns (uint count) {
+        TokenManagementInterface _tokenExtension = TokenManagementInterface(getTokenExtension(_platform));
+        ChronoBankAssetOwnershipManager _assetsOwnershipManager = ChronoBankAssetOwnershipManager(_tokenExtension.getAssetOwnershipManager());
+
+        uint symbolsCount = _assetsOwnershipManager.symbolsCount();
+        for (uint symbolsIdx = 0; symbolsIdx < symbolsCount; ++symbolsIdx) {
+            bytes32 _symbol = _assetsOwnershipManager.symbols(symbolsIdx);
+            if (_assetsOwnershipManager.hasAssetRights(_owner, _symbol)) {
+                ++count;
+            }
+        }
     }
 
     /**
@@ -299,8 +330,26 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
     *
     * @return symbol of an asset
     */
-    function getAssetForOwnerAtIndex(address _platform, address _owner, uint _idx) public constant returns (bytes32) {
-        return AssetsManagerAggregations.getAssetForOwnerAtIndex(getTokenExtension(_platform), _owner, _idx);
+    function getAssetForOwnerAtIndex(
+        address _platform,
+        address _owner,
+        uint _idx
+    )
+    public
+    view
+    returns (bytes32)
+    {
+        TokenManagementInterface _tokenExtension = TokenManagementInterface(getTokenExtension(_platform));
+        ChronoBankAssetOwnershipManager _assetsOwnershipManager = ChronoBankAssetOwnershipManager(_tokenExtension.getAssetOwnershipManager());
+
+        uint currentIdx = _idx - 1;
+        uint symbolsCount = _assetsOwnershipManager.symbolsCount();
+        for (uint symbolsIdx = _idx; symbolsIdx < symbolsCount; ++symbolsIdx) {
+            bytes32 _symbol = _assetsOwnershipManager.symbols(symbolsIdx);
+            if (_assetsOwnershipManager.hasAssetRights(_owner, _symbol) && ++currentIdx == _idx) {
+                return _symbol;
+            }
+        }
     }
 
     /** Helper functions */

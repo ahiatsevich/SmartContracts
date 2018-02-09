@@ -16,7 +16,29 @@ module.exports = function (deployer, network, accounts) {
     .then(_manager => {
         return Promise.resolve()
         .then(() => PlatformsManager.deployed())
-        .then(platformsManager => platformsManager.getPlatformForUserAtIndex.call(systemOwner, 0))
+        .then(async (platformsManager) => {
+            var platforms = []
+
+            return Promise.resolve().then(async () => {
+                let platformsCount = await platformsManager.getPlatformsCount.call()
+                let allPlatforms = await platformsManager.getPlatforms.call(0, platformsCount)
+                let next = Promise.resolve()
+                for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
+                    (function() {
+                        const _platformAddr = allPlatforms[_platformIdx];
+                        next = next.then(async () => {
+                            let _platform = await ChronoBankPlatform.at(_platformAddr)
+                            let _owner = await _platform.contractOwner.call()
+                            if (_owner === systemOwner) {
+                                platforms.push(_platformAddr)
+                            }
+                        })
+                    })()
+                }
+                return next
+            }).then(() => platforms[0])
+            platformsManager.getPlatformForUserAtIndex.call(systemOwner, 0)
+        })
         .then(_platformAddr => _manager.init(ContractsManager.address, RewardsWallet.address, _platformAddr, 0))
     })
     .then(() => MultiEventsHistory.deployed())

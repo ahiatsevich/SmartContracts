@@ -25,20 +25,25 @@ contract OwnedContract {
 * Some methods could require to pay additional fee in TIMEs during their invocation.
 */
 contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmitter, PlatformsManagerInterface {
+
     /** Error codes */
-    uint constant ERROR_PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS = 21001;
-    uint constant ERROR_PLATFORMS_PLATFORM_DOES_NOT_EXIST = 21002;
-    uint constant ERROR_PLATFORMS_INCONSISTENT_INTERNAL_STATE = 21003;
-    uint constant ERROR_PLATFORMS_REPEAT_SYNC_IS_NOT_COMPLETED = 21005;
-    uint constant ERROR_PLATFORMS_CANNOT_UPDATE_EVENTS_HISTORY_NOT_EVENTS_ADMIN = 21006;
+    uint constant ERROR_PLATFORMS_SCOPE = 21000;
+    uint constant ERROR_PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS = ERROR_PLATFORMS_SCOPE + 1;
+    uint constant ERROR_PLATFORMS_PLATFORM_DOES_NOT_EXIST = ERROR_PLATFORMS_SCOPE + 2;
+    uint constant ERROR_PLATFORMS_INCONSISTENT_INTERNAL_STATE = ERROR_PLATFORMS_SCOPE + 3;
+    uint constant ERROR_PLATFORMS_REPEAT_SYNC_IS_NOT_COMPLETED = ERROR_PLATFORMS_SCOPE + 5;
+    uint constant ERROR_PLATFORMS_CANNOT_UPDATE_EVENTS_HISTORY_NOT_EVENTS_ADMIN = ERROR_PLATFORMS_SCOPE + 6;
 
     /** Storage keys */
 
     /** @dev address of platforms factory contract */
     StorageInterface.Address platformsFactory;
 
+    /// @dev DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
+    StorageInterface.OrderedAddressesSet platforms_old;
+
     /** @dev set(address) stands for set(platform) */
-    StorageInterface.OrderedAddressesSet platforms;
+    StorageInterface.AddressesSet platforms;
 
     /**
     * @dev Guards methods for only platform owners
@@ -49,13 +54,24 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
     }
 
-    function PlatformsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) {
+    function PlatformsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
         platformsFactory.init("platformsFactory");
-        platforms.init("v1platforms");
+        platforms_old.init("v1platforms"); /// NOTE: DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
+        platforms.init("v2platforms");
     }
 
     function init(address _contractsManager, address _platformsFactory) onlyContractOwner public returns (uint) {
         BaseManager.init(_contractsManager, "PlatformsManager");
+
+        /// NOTE: migration loop. WILL BE REMOVED IN THE NEXT RELEASE
+        if (store.count(platforms_old) > 0) {
+            StorageInterface.Iterator memory _iterator = store.listIterator(platforms_old);
+            while (store.canGetNextWithIterator(platforms_old, _iterator)) {
+                address _platform = store.getNextWithIterator(platforms_old, _iterator);
+                store.add(platforms, _platform);
+                store.remove(platforms_old, _platform);
+            }
+        }
 
         store.set(platformsFactory, _platformsFactory);
 
@@ -69,8 +85,26 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     *
     * @return `true` if it is registered, `false` otherwise
     */
-    function isPlatformAttached(address _platform) public constant returns (bool) {
+    function isPlatformAttached(address _platform) public view returns (bool) {
         return store.includes(platforms, _platform);
+    }
+
+    function getPlatformsCount() public view returns (uint) {
+        return store.count(platforms);
+    }
+
+    function getPlatforms(uint _start, uint _size) public view returns (address[] _platforms) {
+        uint _totalPlatformsCount = getPlatformsCount();
+        if (_start >= _totalPlatformsCount || _size == 0) {
+            return _platforms;
+        }
+        _platforms = new address[](_size);
+
+        uint _lastIdx = (_start + _size >= _totalPlatformsCount) ? _totalPlatformsCount : _start + _size;
+        uint _platformIdx = 0;
+        for (uint _idx = _start; _idx < _lastIdx; ++_idx) {
+            _platforms[_platformIdx++] = store.get(platforms, _idx);
+        }
     }
 
     /**
@@ -96,7 +130,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
 
         store.add(platforms, _platform);
-        
+
         _emitPlatformAttached(_platform, msg.sender);
 
         return OK;
@@ -148,7 +182,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     {
         PlatformsFactory factory = PlatformsFactory(store.get(platformsFactory));
         address _platform = factory.createPlatform(getEventsHistory());
-        _attachPlatformWithoutValidation(_platform, msg.sender);
+        store.add(platforms, _platform);
 
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));
         resultCode = assetsManager.requestTokenExtension(_platform);
@@ -166,7 +200,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     /**
     * @dev Checks if passed platform is owned by msg.sender. PRIVATE
     */
-    function _isPlatformOwner(address _platform) private constant returns (bool) {
+    function _isPlatformOwner(address _platform) private view returns (bool) {
         return OwnedContract(_platform).contractOwner() == msg.sender;
     }
 
