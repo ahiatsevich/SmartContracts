@@ -4,6 +4,9 @@ const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
 const ChronoBankPlatform = artifacts.require("./ChronoBankPlatform.sol")
 const TokenManagementInterface = artifacts.require('./TokenManagementInterface.sol')
+const PlatformsManagerDammyDeprecated = artifacts.require('./PlatformsManagerDammyDeprecated.sol')
+const PlatformsManager = artifacts.require('./PlatformsManager.sol')
+const ChronoBankPlatformFactory = artifacts.require('./ChronoBankPlatformFactory.sol')
 
 contract("PlatformsManager", function (accounts) {
     const contractOwner = accounts[0]
@@ -42,6 +45,24 @@ contract("PlatformsManager", function (accounts) {
         await next
 
         return userPlatforms
+    }
+
+    const deployPlatformsManagerWithStatistics = async () => {
+        let platformsManager = await PlatformsManagerDammyDeprecated.new(Setup.storage.address, "PlatformsManager")
+        await Setup.storageManager.giveAccess(platformsManager.address, "PlatformsManager")
+        await platformsManager.init(Setup.contractsManager.address, ChronoBankPlatformFactory.address)
+        await Setup.multiEventsHistory.authorize(platformsManager.address)
+
+        return platformsManager
+    }
+
+    const deployNewPlatformsManager = async () => {
+        let platformsManager = await PlatformsManager.new(Setup.storage.address, "PlatformsManager")
+        await Setup.storageManager.giveAccess(platformsManager.address, "PlatformsManager")
+        await platformsManager.init(Setup.contractsManager.address, ChronoBankPlatformFactory.address)
+        await Setup.multiEventsHistory.authorize(platformsManager.address)
+
+        return platformsManager
     }
 
     before("setup", async () => {
@@ -174,8 +195,8 @@ contract("PlatformsManager", function (accounts) {
             assert.lengthOf(noPlatformAddresses, 0)
         })
 
-        it('revert', function (done) {
-            reverter.revert(done, reverter.snapshotId - 1)
+        it('revert', async () => {
+            await reverter.promisifyRevert(reverter.snapshotId - 1)
         })
     })
 
@@ -218,9 +239,55 @@ contract("PlatformsManager", function (accounts) {
             assert.equal(revokeValue, revokeEvent.args.value.valueOf())
         })
 
-        it('revert', function (done) {
-            reverter.revert(done, reverter.snapshotId - 1)
+        it('revert', async () => {
+            await reverter.promisifyRevert(reverter.snapshotId - 1)
+        })
+    })
+
+    context("migration from deprecated PlatformsManager with statistics to cleaned up PlatformsManager contract", () => {
+        let oldPlatformsManager
+        let owner = accounts[6]
+        let createdPlatforms = []
+
+        it("should be able to able to deploy old platforms manager and create platforms", async () => {
+            oldPlatformsManager = await deployPlatformsManagerWithStatistics()
+
+            const numberOfPlatforms = 3
+            for (var _iterationIdx = 0; _iterationIdx < numberOfPlatforms; ++_iterationIdx) {
+                let createPlatformTx = await oldPlatformsManager.createPlatform({ from: owner })
+                let event = eventsHelper.extractEvents(createPlatformTx, "PlatformRequested")[0]
+                assert.isDefined(event)
+
+                let platform = await ChronoBankPlatform.at(event.args.platform)
+                createdPlatforms.push(platform)
+            }
+
+            assert.lengthOf(createdPlatforms, numberOfPlatforms)
+            for (platform of createdPlatforms) {
+                assert.isTrue(await oldPlatformsManager.isPlatformAttached.call(platform.address))
+            }
         })
 
+        it("should be able to attach platform to old platforms manager", async () => {
+            let platform = await createPlatform(owner)
+            await oldPlatformsManager.attachPlatform(platform.address, { from: owner })
+
+            assert.isTrue(await oldPlatformsManager.isPlatformAttached.call(platform.address))
+
+            createdPlatforms.push(platform)
+        })
+
+        it("should be able to migrate platforms to new version of platforms manager without statistics", async () => {
+            let updatedPlatformsManager = await deployNewPlatformsManager()
+
+            for (platform of createdPlatforms) {
+                assert.isTrue(await updatedPlatformsManager.isPlatformAttached.call(platform.address))
+                assert.isFalse(await oldPlatformsManager.isPlatformAttached.call(platform.address))
+            }
+        })
+
+        it('revert', async () => {
+            await reverter.promisifyRevert()
+        })
     })
 })
