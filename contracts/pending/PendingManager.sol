@@ -28,12 +28,12 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     mapping (bytes32 => bytes) data;
 
     function PendingManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
-        txHashes.init('txHashesh');
-        to.init('to');
-        value.init('value');
-        yetNeeded.init('yetNeeded');
-        ownersDone.init('ownersDone');
-        timestamp.init('timestamp');
+        txHashes.init('v2txHashesh');
+        to.init('v2to');
+        value.init('v2value');
+        yetNeeded.init('v2yetNeeded');
+        ownersDone.init('v2ownersDone');
+        timestamp.init('v2timestamp');
     }
 
     // METHODS
@@ -86,7 +86,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         We add block.number as a salt to make them distinct from each other.
         */
         _hash = keccak256(block.number, _hash);
-        
+
         if (store.includes(txHashes, _hash)) {
             return _emitError(ERROR_PENDING_DUPLICATE_TX);
         }
@@ -117,7 +117,9 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
             return ERROR_PENDING_NOT_FOUND;
         }
 
-        /* NOTE: https://github.com/aragon/aragonOS/issues/141
+        /* NOTE: https://github.com/paritytech/parity/issues/6982
+        https://github.com/aragon/aragonOS/issues/141
+
         Here should be noted that gas estimation for call and delegatecall invocations
         might be broken and underestimates a gas amount needed to complete a transaction.
         */
