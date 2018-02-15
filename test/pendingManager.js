@@ -85,6 +85,67 @@ contract('Pending Manager', function(accounts) {
       });
     });
 
+    context("multisig for the same method with salt (required CBE == 2)", function () {
+        const tempCBE = accounts[accounts.length - 1]
+        let hash1
+        let hash2
+
+        it("pending operation counter should be 0", async () => {
+            const pendingOperationNumber = await Setup.shareable.pendingsCount.call({from: owner})
+            assert.equal(pendingOperationNumber, 0)
+        })
+
+        it("should allow one of CBE to propose other as CBE with multisig", async () => {
+            const addCbeTx = await Setup.userManager.addCBE(tempCBE, 0x0, { from: owner1 })
+            const confirmationEvent = (await eventsHelper.findEvent([Setup.shareable], addCbeTx, "Confirmation"))[0]
+            assert.isDefined(confirmationEvent)
+
+            hash1 = confirmationEvent.args.hash
+
+            const pendingOperationNumber = await Setup.shareable.pendingsCount.call()
+            assert.equal(pendingOperationNumber, 1)
+        })
+
+        it("should allow other CBE to propose the same user as CBE with multisig", async () => {
+            const addCbeTx = await Setup.userManager.addCBE(tempCBE, 0x0, { from: owner })
+            const confirmationEvent = (await eventsHelper.findEvent([Setup.shareable], addCbeTx, "Confirmation"))[0]
+            assert.isDefined(confirmationEvent)
+
+            hash2 = confirmationEvent.args.hash
+            assert.notEqual(hash2, hash1)
+
+            const pendingOperationNumber = await Setup.shareable.pendingsCount.call()
+            assert.equal(pendingOperationNumber, 2)
+        })
+
+        it("should be able to successfully confirm second proposition and got `user already is cbe` for the first", async () => {
+            const conf1Tx = await Setup.shareable.confirm(hash1, { from: owner })
+            const doneConf1Event = (await eventsHelper.findEvent([Setup.shareable, Setup.userManager], conf1Tx, "Done"))[0]
+            assert.isDefined(doneConf1Event)
+
+            assert.isTrue(await Setup.userManager.getCBE.call(tempCBE))
+
+            const pendingOperationNumber = await Setup.shareable.pendingsCount.call()
+            assert.equal(pendingOperationNumber, 1)
+
+            const conf2Tx = await Setup.shareable.confirm(hash2, { from: owner1 })
+            const doneConf2Event = (await eventsHelper.findEvent([Setup.shareable, Setup.userManager], conf2Tx, "Done"))[0]
+            assert.isDefined(doneConf2Event)
+
+            assert.isTrue(await Setup.userManager.getCBE.call(tempCBE))
+
+            const nextPendingOperationNumber = await Setup.shareable.pendingsCount.call()
+            assert.equal(nextPendingOperationNumber.toNumber(), 0)
+        })
+
+        it('should be able to remove CBE', async () => {
+            const revokeTx = await Setup.userManager.revokeCBE(tempCBE, { from: owner})
+            const confirmationEvent = (await eventsHelper.findEvent([Setup.shareable], revokeTx, "Confirmation"))[0]
+            await Setup.shareable.confirm(confirmationEvent.args.hash, { from: owner1 })
+
+            assert.isFalse(await Setup.userManager.getCBE.call(tempCBE))
+        })
+    })
   });
 
   context("with two CBE keys", function(){
@@ -120,7 +181,7 @@ contract('Pending Manager', function(accounts) {
         return eventsHelper.getEvents(txHash, watcher);
       }).then(function(events) {
         conf_sign = events[0].args.hash;
-        Setup.shareable.pendingsCount.call({from: owner}).then(function(r) {
+        return Setup.shareable.pendingsCount.call({from: owner}).then(function(r) {
           assert.equal(r,1);
         });
       });

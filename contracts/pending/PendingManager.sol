@@ -4,6 +4,10 @@ import "../core/user/UserManagerInterface.sol";
 import "../core/common/BaseManager.sol";
 import "./PendingManagerEmitter.sol";
 
+
+/// @title PendingManager
+///
+/// TODO:
 contract PendingManager is PendingManagerEmitter, BaseManager {
 
     uint constant ERROR_PENDING_NOT_FOUND = 4000;
@@ -23,7 +27,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
 
     mapping (bytes32 => bytes) data;
 
-    function PendingManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) {
+    function PendingManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
         txHashes.init('txHashesh');
         to.init('to');
         value.init('value');
@@ -34,16 +38,16 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
 
     // METHODS
 
-    function init(address _contractsManager) onlyContractOwner returns (uint errorCode) {
+    function init(address _contractsManager) onlyContractOwner public returns (uint errorCode) {
         BaseManager.init(_contractsManager, "PendingManager");
         return OK;
     }
 
-    function pendingsCount() constant returns (uint) {
+    function pendingsCount() public view returns (uint) {
         return store.count(txHashes);
     }
 
-    function getTxs() constant returns (bytes32[] _hashes, uint[] _yetNeeded, uint[] _ownersDone, uint[] _timestamp) {
+    function getTxs() public view returns (bytes32[] _hashes, uint[] _yetNeeded, uint[] _ownersDone, uint[] _timestamp) {
         _hashes = new bytes32[](pendingsCount());
         _yetNeeded = new uint[](pendingsCount());
         _ownersDone = new uint[](pendingsCount());
@@ -57,23 +61,32 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         return (_hashes, _yetNeeded, _ownersDone, _timestamp);
     }
 
-    function getTx(bytes32 _hash) constant returns (bytes _data, uint _yetNeeded, uint _ownersDone, uint _timestamp) {
+    function getTx(bytes32 _hash) public view returns (bytes _data, uint _yetNeeded, uint _ownersDone, uint _timestamp) {
         return (data[_hash], store.get(yetNeeded, _hash), store.get(ownersDone, _hash), store.get(timestamp, _hash));
     }
 
-    function pendingYetNeeded(bytes32 _hash) constant returns (uint) {
+    function pendingYetNeeded(bytes32 _hash) public view returns (uint) {
         return store.get(yetNeeded, _hash);
     }
 
-    function getTxData(bytes32 _hash) constant returns (bytes) {
+    function getTxData(bytes32 _hash) public view returns (bytes) {
         return data[_hash];
     }
 
-    function getUserManager() constant returns (address) {
+    function getUserManager() public view returns (address) {
         return lookupManager("UserManager");
     }
 
-    function addTx(bytes32 _hash, bytes _data, address _to, address _sender) onlyAuthorizedContract(_sender) returns (uint errorCode) {
+    function addTx(bytes32 _hash, bytes _data, address _to, address _sender) onlyAuthorizedContract(_sender) public returns (uint errorCode) {
+        /* NOTE: Multiple instances of the same contract could use the same multisig
+        implementation based on a single PendingManager contract, so methods with
+        the same signature and passed paramenters couldn't be differentiated and would be
+        stored in PendingManager under the same key for an instance that were invoked first.
+
+        We add block.number as a salt to make them distinct from each other.
+        */
+        _hash = keccak256(block.number, _hash);
+        
         if (store.includes(txHashes, _hash)) {
             return _emitError(ERROR_PENDING_DUPLICATE_TX);
         }
@@ -136,7 +149,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         errorCode = OK;
     }
 
-    function hasConfirmed(bytes32 _hash, address _owner) onlyAuthorizedContract(_owner) constant returns (bool) {
+    function hasConfirmed(bytes32 _hash, address _owner) onlyAuthorizedContract(_owner) public view returns (bool) {
         // determine the bit to set for this owner
         address userManager = getUserManager();
         uint ownerIndexBit = 2 ** UserManagerInterface(userManager).getMemberId(_owner);
@@ -172,22 +185,14 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     }
 
     function deleteTx(bytes32 _hash) internal {
-        uint txId = store.getIndex(txHashes, _hash);
-        uint txCount = store.count(txHashes);
-        if (txId != txCount - 1) {
-            updateTxId(txId, txCount - 1);
-        }
+        store.set(to, _hash, 0x0);
+        store.set(value, _hash, 0);
+        store.set(yetNeeded, _hash, 0);
+        store.set(ownersDone, _hash, 0);
+        store.set(timestamp, _hash, 0);
+        delete data[_hash];
 
         store.remove(txHashes, _hash);
-    }
-
-    function updateTxId(uint _oldId, uint _newId) internal {
-        store.set(to, store.get(txHashes, _oldId), store.get(to, store.get(txHashes, _newId)));
-        store.set(value, store.get(txHashes, _oldId), store.get(value, store.get(txHashes, _newId)));
-        store.set(yetNeeded, store.get(txHashes, _oldId), store.get(yetNeeded, store.get(txHashes, _newId)));
-        store.set(ownersDone, store.get(txHashes, _oldId), store.get(ownersDone, store.get(txHashes, _newId)));
-        store.set(timestamp, store.get(txHashes, _oldId), store.get(timestamp, store.get(txHashes, _newId)));
-        data[store.get(txHashes, _oldId)] = data[store.get(txHashes, _newId)];
     }
 
     function _emitConfirmation(address owner, bytes32 hash) internal {
@@ -220,7 +225,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         return error;
     }
 
-    function() {
-        throw;
+    function () public payable {
+        revert();
     }
 }
