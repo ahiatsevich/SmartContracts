@@ -2,6 +2,7 @@ pragma solidity ^0.4.11;
 
 import "../core/user/UserManagerInterface.sol";
 import "../core/common/BaseManager.sol";
+import "../core/lib/SafeMath.sol";
 import "./PendingManagerEmitter.sol";
 
 
@@ -10,6 +11,8 @@ import "./PendingManagerEmitter.sol";
 /// TODO:
 contract PendingManager is PendingManagerEmitter, BaseManager {
 
+    using SafeMath for uint;
+
     uint constant ERROR_PENDING_NOT_FOUND = 4000;
     uint constant ERROR_PENDING_INVALID_INVOCATION = 4001;
     uint constant ERROR_PENDING_ADD_CONTRACT = 4002;
@@ -17,23 +20,20 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     uint constant ERROR_PENDING_CANNOT_CONFIRM = 4004;
     uint constant ERROR_PENDING_PREVIOUSLY_CONFIRMED = 4005;
 
-    // TYPES
-    StorageInterface.Set txHashes;
-    StorageInterface.Bytes32AddressMapping to;
-    StorageInterface.Bytes32UIntMapping value;
-    StorageInterface.Bytes32UIntMapping yetNeeded;
-    StorageInterface.Bytes32UIntMapping ownersDone;
-    StorageInterface.Bytes32UIntMapping timestamp;
+    struct Transaction {
+        uint yetNeeded;
+        uint ownersDone;
+        uint timestamp;
+        address to;
+        bytes data;
+    }
 
-    mapping (bytes32 => bytes) data;
+    uint txHashesCount;
+    mapping (uint => bytes32) index2hashMapping;
+    mapping (bytes32 => uint) hash2indexMapping;
+    mapping (bytes32 => Transaction) txBodies;
 
     function PendingManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
-        txHashes.init('v2txHashesh');
-        to.init('v2to');
-        value.init('v2value');
-        yetNeeded.init('v2yetNeeded');
-        ownersDone.init('v2ownersDone');
-        timestamp.init('v2timestamp');
     }
 
     // METHODS
@@ -44,33 +44,41 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     }
 
     function pendingsCount() public view returns (uint) {
-        return store.count(txHashes);
+        return txHashesCount;
     }
 
     function getTxs() public view returns (bytes32[] _hashes, uint[] _yetNeeded, uint[] _ownersDone, uint[] _timestamp) {
-        _hashes = new bytes32[](pendingsCount());
-        _yetNeeded = new uint[](pendingsCount());
-        _ownersDone = new uint[](pendingsCount());
-        _timestamp = new uint[](pendingsCount());
-        for (uint i = 0; i < pendingsCount(); i++) {
-            _hashes[i] = store.get(txHashes, i);
-            _yetNeeded[i] = store.get(yetNeeded, _hashes[i]);
-            _ownersDone[i] = store.get(ownersDone, _hashes[i]);
-            _timestamp[i] = store.get(timestamp, _hashes[i]);
+        uint _txHashesCount = txHashesCount;
+        if (_txHashesCount == 0) {
+            return;
         }
-        return (_hashes, _yetNeeded, _ownersDone, _timestamp);
+
+        _hashes = new bytes32[](_txHashesCount);
+        _yetNeeded = new uint[](_txHashesCount);
+        _ownersDone = new uint[](_txHashesCount);
+        _timestamp = new uint[](_txHashesCount);
+        for (uint _idx = 1; _idx <= _txHashesCount; ++_idx) {
+            bytes32 _hash = index2hashMapping[_idx];
+            Transaction storage _tx = txBodies[_hash];
+
+            _hashes[_idx] = _hash;
+            _yetNeeded[_idx] = _tx.yetNeeded;
+            _ownersDone[_idx] = _tx.ownersDone;
+            _timestamp[_idx] = _tx.timestamp;
+        }
     }
 
     function getTx(bytes32 _hash) public view returns (bytes _data, uint _yetNeeded, uint _ownersDone, uint _timestamp) {
-        return (data[_hash], store.get(yetNeeded, _hash), store.get(ownersDone, _hash), store.get(timestamp, _hash));
+        Transaction storage _tx = txBodies[_hash];
+        (_data, _yetNeeded, _ownersDone, _timestamp) = (_tx.data, _tx.yetNeeded, _tx.ownersDone, _tx.timestamp);
     }
 
     function pendingYetNeeded(bytes32 _hash) public view returns (uint) {
-        return store.get(yetNeeded, _hash);
+        return txBodies[_hash].yetNeeded;
     }
 
     function getTxData(bytes32 _hash) public view returns (bytes) {
-        return data[_hash];
+        return txBodies[_hash].data;
     }
 
     function getUserManager() public view returns (address) {
@@ -87,16 +95,16 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         */
         _hash = keccak256(block.number, _hash);
 
-        if (store.includes(txHashes, _hash)) {
+        if (hash2indexMapping[_hash] != 0) {
             return _emitError(ERROR_PENDING_DUPLICATE_TX);
         }
 
-        store.add(txHashes, _hash);
-        data[_hash] = _data;
-        store.set(to, _hash, _to);
         address userManager = getUserManager();
-        store.set(yetNeeded, _hash, UserManagerInterface(userManager).required());
-        store.set(timestamp, _hash, now);
+        uint _idx = txHashesCount + 1;
+        txBodies[_hash] = Transaction(UserManagerInterface(userManager).required(), 0, now, _to, _data);
+        index2hashMapping[_idx] = _hash;
+        hash2indexMapping[_hash] = _idx;
+        txHashesCount = _idx;
 
         errorCode = conf(_hash, _sender);
         return _checkAndEmitError(errorCode);
@@ -113,7 +121,8 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
             return errorCode;
         }
 
-        if (store.get(to, _hash) == 0) {
+        address _to = txBodies[_hash].to;
+        if (_to == 0x0) {
             return ERROR_PENDING_NOT_FOUND;
         }
 
@@ -123,7 +132,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         Here should be noted that gas estimation for call and delegatecall invocations
         might be broken and underestimates a gas amount needed to complete a transaction.
         */
-        if (!store.get(to, _hash).call(data[_hash])) {
+        if (!_to.call(txBodies[_hash].data)) {
             revert(); // ERROR_PENDING_CANNOT_CONFIRM
         }
 
@@ -135,15 +144,18 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     function revoke(bytes32 _hash) external onlyAuthorized returns (uint errorCode) {
         address userManager = getUserManager();
         uint ownerIndexBit = 2 ** UserManagerInterface(userManager).getMemberId(msg.sender);
-        if (store.get(ownersDone, _hash) & ownerIndexBit <= 0) {
+        Transaction storage _tx = txBodies[_hash];
+        uint _ownersDone = _tx.ownersDone;
+        if ((_ownersDone & ownerIndexBit) == 0) {
             errorCode = _emitError(ERROR_PENDING_NOT_FOUND);
             return errorCode;
         }
 
-        store.set(yetNeeded, _hash, store.get(yetNeeded, _hash) + 1);
-        store.set(ownersDone, _hash, store.get(ownersDone, _hash) - ownerIndexBit);
+        uint _yetNeeded = _tx.yetNeeded + 1;
+        _tx.yetNeeded = _yetNeeded;
+        _tx.ownersDone = _ownersDone.sub(ownerIndexBit);
         _emitRevoke(msg.sender, _hash);
-        if (store.get(yetNeeded, _hash) == UserManagerInterface(userManager).required()) {
+        if (_yetNeeded == UserManagerInterface(userManager).required()) {
             deleteTx(_hash);
             _emitCancelled(_hash);
         }
@@ -155,7 +167,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         // determine the bit to set for this owner
         address userManager = getUserManager();
         uint ownerIndexBit = 2 ** UserManagerInterface(userManager).getMemberId(_owner);
-        return !(store.get(ownersDone, _hash) & ownerIndexBit == 0);
+        return (txBodies[_hash].ownersDone & ownerIndexBit) != 0;
     }
 
 
@@ -166,35 +178,45 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         address userManager = getUserManager();
         uint ownerIndexBit = 2 ** UserManagerInterface(userManager).getMemberId(_sender);
         // make sure we (the message sender) haven't confirmed this operation previously
-        if (store.get(ownersDone, _hash) & ownerIndexBit != 0) {
+        Transaction storage _tx = txBodies[_hash];
+        uint _ownersDone = _tx.ownersDone;
+        if ((_ownersDone & ownerIndexBit) != 0) {
             return ERROR_PENDING_PREVIOUSLY_CONFIRMED;
         }
 
+        uint _yetNeeded = _tx.yetNeeded;
         // ok - check if count is enough to go ahead
-        if (store.get(yetNeeded, _hash) <= 1) {
+        if (_yetNeeded <= 1) {
             // enough confirmations: reset and run interior
-            _emitDone(_hash, data[_hash], now);
+            _emitDone(_hash, _tx.data, now);
             return OK;
         } else {
             // not enough: record that this owner in particular confirmed
-            store.set(yetNeeded, _hash, store.get(yetNeeded, _hash) - 1);
-            uint _ownersDone = store.get(ownersDone, _hash);
+            _tx.yetNeeded = _yetNeeded.sub(1);
             _ownersDone |= ownerIndexBit;
-            store.set(ownersDone, _hash, _ownersDone);
+            _tx.ownersDone = _ownersDone;
             _emitConfirmation(_sender, _hash);
             return MULTISIG_ADDED;
         }
     }
 
     function deleteTx(bytes32 _hash) internal {
-        store.set(to, _hash, 0x0);
-        store.set(value, _hash, 0);
-        store.set(yetNeeded, _hash, 0);
-        store.set(ownersDone, _hash, 0);
-        store.set(timestamp, _hash, 0);
-        delete data[_hash];
+        uint _idx = hash2indexMapping[_hash];
+        uint _lastHashIdx = txHashesCount;
+        bytes32 _lastHash = index2hashMapping[_lastHashIdx];
 
-        store.remove(txHashes, _hash);
+        if (_idx != _lastHashIdx) {
+            delete hash2indexMapping[_hash];
+            delete index2hashMapping[_lastHashIdx];
+            hash2indexMapping[_lastHash] = _idx;
+            index2hashMapping[_idx] = _lastHash;
+        } else {
+            delete hash2indexMapping[_lastHash];
+            delete index2hashMapping[_lastHashIdx];
+        }
+
+        delete txBodies[_hash];
+        txHashesCount = _lastHashIdx.sub(1);
     }
 
     function _emitConfirmation(address owner, bytes32 hash) internal {
