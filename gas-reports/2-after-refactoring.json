@@ -1,0 +1,147 @@
+{
+    "version": "1.1.45",
+    "scopes": {
+        "PendingManager": {
+            "slices": [
+                {
+                    "name": "add one CBE key when required == 1, confirm immediately",
+                    "methods": [
+                        {
+                            "sig": "userManager.addCBE",
+                            "tx": "0x1380985fc4af4dbbf92840b114ab24a3bdfcea891c9fb5e7b7a952ed080b8d1c",
+                            "gas": 377109,
+                            "payload": ""
+                        }
+                    ],
+                    "totalGas": 377109
+                },
+                {
+                    "name": "propose pending for adding CBE, required == 2, then revoke",
+                    "methods": [
+                        {
+                            "sig": "userManager.addCBE",
+                            "tx": "0xcf5f160ca8713be2ed1ec02bcc2368c5c811b971e518ca9fd026719cdbf5d64e",
+                            "gas": 303130,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.revoke",
+                            "tx": "0xc01ad12fc30e884498d847983ce48d6b9109d8d55874475f31c6c38cd65cff53",
+                            "gas": 66711,
+                            "payload": ""
+                        }
+                    ],
+                    "totalGas": 369841
+                },
+                {
+                    "name": "propose pending for adding CBE, required == 2, then confirm",
+                    "methods": [
+                        {
+                            "sig": "userManager.addCBE",
+                            "tx": "0x2c0ae86ae34e674c9fffcb69d1879f4934a4aebd9b28083647e7a2f5155882e8",
+                            "gas": 303130,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0x712fd724007185beeeecfd5e991c39983927935a342b3615d8734f8a22094350",
+                            "gas": 144305,
+                            "payload": ""
+                        }
+                    ],
+                    "totalGas": 447435
+                },
+                {
+                    "name": "propose pending for adding CBE, required == 3, then confirm",
+                    "methods": [
+                        {
+                            "sig": "userManager.addCBE",
+                            "tx": "0xa6e3029867d4a93236b27f2de68f5cdb69343507f20e4fb4cac707c3f9728e01",
+                            "gas": 303194,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xee797025366870e3cc4efa6f054007f49426be1176af8f11e8a4451daaf14afc",
+                            "gas": 64685,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0x38a9abae363a8c45de71fa2099f5845fe9c7e66233d8866c0591f267376a1957",
+                            "gas": 144305,
+                            "payload": ""
+                        }
+                    ],
+                    "totalGas": 512184
+                },
+                {
+                    "name": "propose pending for adding CBE, required == 4, then confirm",
+                    "methods": [
+                        {
+                            "sig": "userManager.addCBE",
+                            "tx": "0x663ad0fadb18543f8295bd035583ecd8c8cb475e1bb93d8aca837917e8bb04c3",
+                            "gas": 303194,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xeed0a5a6b7acf1e96229039fe80f6df6723af0f6c5d2c56d90ad33e98f8927d2",
+                            "gas": 64685,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xa6d3be33e4d81a5ccfc0c13cdc3c81e6a56562f6a3fb3469b8e19bfd751d5510",
+                            "gas": 64685,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0x4fc7b83adf3be5384f4cdd2046fd7638da244c34c25309047b4e8ab6345c7394",
+                            "gas": 144305,
+                            "payload": ""
+                        }
+                    ],
+                    "totalGas": 576869
+                },
+                {
+                    "name": "propose pending for adding CBE, required == 5, then confirm",
+                    "methods": [
+                        {
+                            "sig": "userManager.addCBE",
+                            "tx": "0x51eabc23d4093ec6f7f81287266c766822fc7fa92902295deb704203bd781ffc",
+                            "gas": 303194,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xc77e15627f3cd971e05dae3780060d88c6ecefeab5635024a25b431b1a3bb8ee",
+                            "gas": 64621,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xa8b87f1aacc86f41ba3c5bf41abe87ff7095984e1677205adbd060b1d1cab6dd",
+                            "gas": 64621,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xe3ae6c4349b9ad8b6224652a18f2de3efdb2d02e2ac7ce3a76d01bc7cfc38e6d",
+                            "gas": 64621,
+                            "payload": ""
+                        },
+                        {
+                            "sig": "shareable.confirm",
+                            "tx": "0xe5c6d4f2536edc3889a5134d9e80a89307216feafea15a3a0346e35a8b6a05aa",
+                            "gas": 144273,
+                            "payload": ""
+                        }
+                    ],
+                    "totalGas": 641330
+                }
+            ]
+        }
+    }
+}
