@@ -104,8 +104,12 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
             return ERROR_PENDING_NOT_FOUND;
         }
 
+        /* NOTE: https://github.com/aragon/aragonOS/issues/141
+        Here should be noted that gas estimation for call and delegatecall invocations
+        might be broken and underestimates a gas amount needed to complete a transaction.
+        */
         if (!store.get(to, _hash).call(data[_hash])) {
-            return ERROR_PENDING_CANNOT_CONFIRM;
+            revert(); // ERROR_PENDING_CANNOT_CONFIRM
         }
 
         deleteTx(_hash);
