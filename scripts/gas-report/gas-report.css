@@ -1,0 +1,50 @@
+table {
+    border: 2px solid #555;
+    border-collapse: collapse;
+    /*font: 16px "Lucida Grande", "Helvetica", "Arial", sans-serif;*/
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+th, td {
+    border: 1px solid #bbb;
+    padding: 2px 8px 0;
+    text-align: left;
+}
+
+th {
+    background-color: #
+}
+
+tbody tr:nth-child(odd){
+    background-color: #eee;
+    color: #222;
+}
+
+thead > tr > th {
+    background-color: #cce;
+    font-size: 18px;
+    border-bottom: 2px solid #999;
+}
+
+.optimized, .optimized-diff {
+    color: #2FC864;
+}
+
+.decreased, .decreased-diff {
+    color: #FF2A1A;
+}
+
+span.optimized-diff, span.decreased-diff, span.neutral-diff {
+    float:right;
+    width:70%;
+    text-align: right;
+    font-size:80%;
+}
+
+span.optimized, span.decreased, span.neutral {
+    float:left;
+    width:30%;
+    text-align: left;
+}

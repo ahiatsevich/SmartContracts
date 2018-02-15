@@ -6,7 +6,9 @@
   "scripts": {
     "release": "standard-version",
     "install": "cp truffle-config.js truffle.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "testgas": "NODE_ENV=gasreportgen ./node_modules/truffle/build/cli.bundled.js test",
+    "gasreport": "./scripts/gas-report/gasreport.cli.js"
   },
   "babel": {
     "presets": [
@@ -40,7 +42,10 @@
     "truffle": "4.0.6",
     "q": "^1.5.0",
     "abi-decoder": "^1.0.9",
-    "truffle-hdwallet-provider": "mikefluff/truffle-hdwallet-provider"
+    "truffle-hdwallet-provider": "mikefluff/truffle-hdwallet-provider",
+    "node-json2html": "1.1",
+    "jsdom": "11.6",
+    "mkdirp": "^0.5.1"
   },
   "devDependencies": {
     "@digix/contest": "^0.2.6",
