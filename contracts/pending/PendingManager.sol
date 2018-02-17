@@ -176,7 +176,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
 
     /// @notice Confirms a transaction proposal and if it is the last vote then invokes stored function
     /// Allowed only for authorized addresses
-    /// @parame _hash key of tx
+    /// @param _hash key of tx
     /// @return result code of an operation
     function confirm(bytes32 _hash) external returns (uint) {
         uint errorCode = conf(_hash, msg.sender);
