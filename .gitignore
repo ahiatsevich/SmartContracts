@@ -7,3 +7,4 @@ node_modules/
 *.bac
 /build
 scripts/doxity/pages/*
+/gas-reports
