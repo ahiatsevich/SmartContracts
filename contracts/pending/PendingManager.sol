@@ -4,7 +4,7 @@ import "../core/user/UserManagerInterface.sol";
 import "../core/common/BaseManager.sol";
 import "../core/lib/SafeMath.sol";
 import "./PendingManagerEmitter.sol";
-
+import '../core/event/MultiEventsHistory.sol';
 
 /// @title PendingManager
 ///
@@ -46,6 +46,16 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     mapping (bytes32 => uint) hash2indexMapping;
     /// @dev mapping (tx key => tx details)
     mapping (bytes32 => Transaction) txBodies;
+
+    /// @dev Only trusted accounts are permited to call this function
+    modifier onlyTrusted() {
+      if (contractOwner == msg.sender
+        || isAuthorized(msg.sender)
+        || store.store.manager().hasAccess(msg.sender)
+        || MultiEventsHistory(getEventsHistory()).isAuthorized(msg.sender)) {
+          _;
+        }
+    }
 
     /// @notice Contract creation
     /// @param _store Storage contract address
@@ -129,7 +139,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     /// @param _owner user address an info of which has been asked for
     ///
     /// @return `true` if confirmed, `false` otherwise of such transaction is not in pending queue
-    function hasConfirmed(bytes32 _hash, address _owner) onlyAuthorizedContract(_owner) public view returns (bool) {
+    function hasConfirmed(bytes32 _hash, address _owner) public view returns (bool) {
         // determine the bit to set for this owner
         address userManager = getUserManager();
         uint ownerIndexBit = 2 ** UserManagerInterface(userManager).getMemberId(_owner);
@@ -149,7 +159,12 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     /// @param _sender who is an initiator of a call
     ///
     /// @return errorCode result code of an operation. When yetNeeded <= 1 returns OK, otherwise MULTISIG_ADDED (in case of success)
-    function addTx(bytes32 _hash, bytes _data, address _to, address _sender) onlyAuthorizedContract(_sender) public returns (uint errorCode) {
+    function addTx(bytes32 _hash, bytes _data, address _to, address _sender)
+    onlyTrusted()
+    onlyAuthorizedContract(_sender)
+    public
+    returns (uint errorCode)
+    {
         /* NOTE: Multiple instances of the same contract could use the same multisig
         implementation based on a single PendingManager contract, so methods with
         the same signature and passed paramenters couldn't be differentiated and would be
@@ -178,7 +193,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     /// Allowed only for authorized addresses
     /// @param _hash key of tx
     /// @return result code of an operation
-    function confirm(bytes32 _hash) external returns (uint) {
+    function confirm(bytes32 _hash) external onlyAuthorized returns (uint) {
         uint errorCode = conf(_hash, msg.sender);
         return _checkAndEmitError(errorCode);
     }
