@@ -39,7 +39,7 @@
     "has-flag": "^1.0.0",
     "ethereumjs-testrpc": "6.0.3",
     "truffle-artifactor": "2.1.5",
-    "truffle": "4.0.6",
+    "truffle": "4.1.0",
     "q": "^1.5.0",
     "abi-decoder": "^1.0.9",
     "truffle-hdwallet-provider": "mikefluff/truffle-hdwallet-provider#7a2eccca1ba17c235a3ef258914ca74ea5f13014",
