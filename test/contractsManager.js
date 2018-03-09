@@ -88,13 +88,7 @@ contract('Contracts Manager', function(accounts) {
       return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.VotingManager).then(function(r) {
         assert.equal(r,Setup.votingManager.address);
       });
-    });
-
-    it("can provide Asset Ownership Resolver details address.", function() {
-      return Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.AssetOwnershipResolver).then(function(r) {
-        assert.equal(r,Setup.assetOwnershipResolver.address);
-      });
-    });
+    });    
 
     it("can provide Token Extension Gateway Manager address.", async () => {
       let storedAddress = await Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.TokenExtensionGateway)

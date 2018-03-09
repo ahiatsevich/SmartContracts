@@ -28,21 +28,15 @@ contract("PlatformsManager", function (accounts) {
         var userPlatforms = []
         let platformsCount = await Setup.platformsManager.getPlatformsCount.call()
         let allPlatforms = await Setup.platformsManager.getPlatforms.call(0, platformsCount)
-        let next = Promise.resolve()
         for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
-            (function() {
-                const _platformAddr = allPlatforms[_platformIdx];
-                next = next.then(async () => {
-                    let _platform = await ChronoBankPlatform.at(_platformAddr)
-                    let _owner = await _platform.contractOwner.call()
-                    if (_owner === user) {
-                        userPlatforms.push(_platformAddr)
-                    }
-                })
-            })()
-        }
+            const _platformAddr = allPlatforms[_platformIdx];
 
-        await next
+            let _platform = await ChronoBankPlatform.at(_platformAddr)
+            let _owner = await _platform.contractOwner.call()
+            if (_owner === user) {
+                userPlatforms.push(_platformAddr)
+            }
+        }
 
         return userPlatforms
     }

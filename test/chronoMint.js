@@ -46,25 +46,20 @@ contract('LOC Manager', function(accounts) {
     const BALANCE_ETH = 1000;
     const fakeArgs = [0,0,0,0,0,0,0,0];
 
-    const getAllPlatformsForUser = async (user) => {
+    let getAllPlatformsForUser = async (user) => {
         var userPlatforms = []
         let platformsCount = await Setup.platformsManager.getPlatformsCount.call()
         let allPlatforms = await Setup.platformsManager.getPlatforms.call(0, platformsCount)
-        let next = Promise.resolve()
-        for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
-            (function() {
-                const _platformAddr = allPlatforms[_platformIdx];
-                next = next.then(async () => {
-                    let _platform = await ChronoBankPlatform.at(_platformAddr)
-                    let _owner = await _platform.contractOwner.call()
-                    if (_owner === user) {
-                        userPlatforms.push(_platformAddr)
-                    }
-                })
-            })()
-        }
 
-        await next
+        for (var _platformIdx = 0; _platformIdx < allPlatforms.length; ++_platformIdx) {
+              const _platformAddr = allPlatforms[_platformIdx];
+
+              let _platform = await ChronoBankPlatform.at(_platformAddr);
+              let _owner = await _platform.contractOwner.call();
+              if (_owner === user) {
+                  userPlatforms.push(_platformAddr);
+              }
+        }
 
         return userPlatforms
     }
@@ -85,7 +80,7 @@ contract('LOC Manager', function(accounts) {
             })
         })
 
-        it.only("Platform has correct LHT proxy address.", async () => {
+        it("Platform has correct LHT proxy address.", async () => {
             const platformAddresses = await getAllPlatformsForUser(owner)
             assert.isAtLeast(platformAddresses.length, 1)
 
