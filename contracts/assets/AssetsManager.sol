@@ -127,7 +127,7 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
         require(_tokenFactory != 0x0);
 
         store.set(tokenFactory, _tokenFactory);
-        return OK;
+        return OK; 
     }
 
     /// @dev Checks if a provided token extension address is a part of the system
@@ -328,6 +328,16 @@ contract AssetsManager is AssetsManagerInterface, TokenExtensionRegistry, BaseMa
                 _managerPointer += 1;
             }
         }
+    }
+
+    /** Backward compatibility */
+
+    /// @notice This method is deprecated and used only for backward compatibility with platforms
+    function assetOwnerAdded(bytes32, address, address) public {
+    }
+
+    /// @notice This method is deprecated and used only for backward compatibility with platforms
+    function assetOwnerRemoved(bytes32, address, address) public {
     }
 
     /** Helper functions */
