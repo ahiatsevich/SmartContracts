@@ -4,6 +4,7 @@ const TimeAsset = artifacts.require("./TimeAsset.sol")
 const TimeAssetProxy = artifacts.require("./TimeAssetProxy.sol")
 const TimePlatformEmitter = artifacts.require("./TimePlatformEmitter.sol")
 
+const VotingManager = artifacts.require("./VotingManager.sol")
 const ERC20Manager = artifacts.require("./ERC20Manager.sol")
 const ERC20Interface = artifacts.require("./ERC20Interface.sol")
 const TimeHolder = artifacts.require("./TimeHolder.sol")
@@ -21,9 +22,10 @@ module.exports = async (deployer, network, accounts) => {
           const TIME_BASE_UNIT = 8;
 
           let erc20Manager = await ERC20Manager.deployed();
-          let timeHolder = await TimeHolder.deployed();
-
           let oldTimeAddress = await erc20Manager.getTokenAddressBySymbol("TIME");
+          let timeHolder = await TimeHolder.deployed();
+          await timeHolder.removeListener(oldTimeAddress, VotingManager.address);
+          
           let totalTimeShares = await timeHolder.totalShares(oldTimeAddress);
 
           await erc20Manager.setToken(oldTimeAddress, TimeAssetProxy.address, TIME_NAME, TIME_SYMBOL, "", TIME_BASE_UNIT, "", "");
