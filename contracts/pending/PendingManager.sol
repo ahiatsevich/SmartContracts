@@ -174,7 +174,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     ///
     /// @return errorCode result code of an operation. When yetNeeded <= 1 returns OK, otherwise MULTISIG_ADDED (in case of success)
     function addTx(bytes32 _hash, bytes _data, address _to, address _sender)
-    onlyTrusted()
+    onlyTrusted
     public
     returns (uint errorCode)
     {
@@ -187,7 +187,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         */
         _hash = keccak256(block.number, _hash);
 
-        if (hash2indexMapping[_hash] != 0) {
+        if (_isTxInPendings(_hash)) {
             return _emitError(ERROR_PENDING_DUPLICATE_TX);
         }
 
@@ -211,7 +211,11 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     /// Allowed only for authorized addresses
     /// @param _hash key of tx
     /// @return result code of an operation
-    function confirm(bytes32 _hash) external onlyAuthorized returns (uint) {
+    function confirm(bytes32 _hash) onlyAuthorized external returns (uint) {
+        if (!_isTxInPendings(_hash)) {
+            return _emitError(ERROR_PENDING_NOT_FOUND);
+        }
+
         uint errorCode = conf(_hash, msg.sender);
         return _checkAndEmitError(errorCode);
     }
@@ -221,10 +225,14 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
     /// @param _hash key of tx
     /// @return errorCode result code of an operation
     function revoke(bytes32 _hash)
-    external
     onlyAuthorized
+    external
     returns (uint)
     {
+        if (!_isTxInPendings(_hash)) {
+            return _emitError(ERROR_PENDING_NOT_FOUND);
+        }
+
         Transaction storage _tx = txBodies[_hash];
 
         if (_tx.ownersDone == 0) {
@@ -252,8 +260,6 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
 
         return OK;
     }
-
-
 
     /// @notice Do not accept any Ether
     function () public payable {
@@ -287,7 +293,7 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         return OK;
     }
 
-    function confirmAndCheck(bytes32 _hash, address _sender) internal onlyAuthorizedContract(_sender) returns (uint) {
+    function confirmAndCheck(bytes32 _hash, address _sender) onlyAuthorizedContract(_sender) internal returns (uint) {
         // determine the bit to set for this owner
         uint ownerIndexBit = 2 ** getUserManager().getMemberId(_sender);
         // make sure we (the message sender) haven't confirmed this operation previously
@@ -334,6 +340,10 @@ contract PendingManager is PendingManagerEmitter, BaseManager {
         _emitCancelled(_hash);
 
         return OK;
+    }
+
+    function _isTxInPendings(bytes32 _hash) private view returns (bool) {
+        return hash2indexMapping[_hash] != 0;
     }
 
     function _emitTxAdded(address owner, address sender, bytes32 hash) internal {
