@@ -34,7 +34,6 @@ const errorsLibrary = {
     LOC_SHOULD_NO_BE_ACTIVE: errorScope.loc + 3,
     LOC_INVALID_PARAMETER: errorScope.loc + 4,
     LOC_INVALID_INVOCATION: errorScope.loc + 5,
-    LOC_ADD_CONTRACT: errorScope.loc + 6,
     LOC_SEND_ASSET: errorScope.loc + 7,
     LOC_REQUESTED_ISSUE_VALUE_EXCEEDED: errorScope.loc + 8,
     LOC_REISSUING_ASSET_FAILED: errorScope.loc + 9,
