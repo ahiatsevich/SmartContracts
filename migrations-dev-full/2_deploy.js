@@ -13,6 +13,7 @@ const StorageManager = artifacts.require('StorageManager')
 const ContractsManager = artifacts.require("ContractsManager")
 const UserManager = artifacts.require("UserManager")
 const ERC20Manager = artifacts.require("ERC20Manager")
+const Roles2Library = artifacts.require("Roles2Library")
 const FeatureFeeManager = artifacts.require("FeatureFeeManager")
 const TokenFactory = artifacts.require("TokenFactory")
 const ChronoBankTokenExtensionFactory = artifacts.require('ChronoBankTokenExtensionFactory')
@@ -599,6 +600,24 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Voting Manager setup: #done`)
 	})
 	.then(async () => {
+		await deployer.deploy(Roles2Library, Storage.address, "Roles2Library")
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Roles Library deploy: #done`)
+	})
+	.then(async () => {
+		const storageManager = await StorageManager.deployed()
+		await storageManager.giveAccess(Roles2Library.address, 'Roles2Library')
+
+		const rolesLibrary = await Roles2Library.deployed()
+		await rolesLibrary.init(ContractsManager.address)
+
+		const history = await MultiEventsHistory.deployed()
+		await history.authorize(rolesLibrary.address)
+		await rolesLibrary.setEventsHistory(history.address)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Roles Library setup: #done`)
+	})
+	.then(async () => {
 
 		const LHT_SYMBOL = 'LHT'
 		const LHT_NAME = 'Labour-hour Token'
@@ -754,4 +773,33 @@ module.exports = (deployer, network, accounts) => {
 
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] UserManager update required: #done`)
 	})
+	.then(async () => {
+		const systemUser = accounts[0]
+		const rootUser = systemUser
+		const middlewareAddresses = [ systemUser, ] // TODO: add more middleware addresses
+		const roles = {
+			middlewareAuthority: 9,
+		}
+
+		const rolesLibrary = await Roles2Library.deployed()
+			await rolesLibrary.setRootUser(rootUser, true, { from: systemUser, })
+			
+			for (var middlewareAddress of middlewareAddresses) {
+				await rolesLibrary.addUserRole(middlewareAddress, roles.middlewareAuthority, { from: rootUser, })
+			}
+		
+			// Setup role capabilities
+		
+			const timeHolder = await TimeHolder.deployed()
+			{
+				const signature = timeHolder.contract.registerUnlockShares.getData("", 0x0, 0, 0x0, "").slice(0, 10)
+				await rolesLibrary.addRoleCapability(roles.middlewareAuthority, timeHolder.address, signature, { from: rootUser, })
+			}
+            {
+                const signature = timeHolder.contract.unregisterUnlockShares.getData("").slice(0, 10)
+                await rolesLibrary.addRoleCapability(roles.middlewareAuthority, timeHolder.address, signature, { from: rootUser, })
+            }
+
+			console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Role Capabilities setup: #done`)
+		})
 }
