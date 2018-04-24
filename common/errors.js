@@ -9,15 +9,16 @@ const errorScope = {
     vote: 8000, // DEPRECATED
     reward: 9000,
     contract: 10000,
-    assets: 30000,
     timeholder: 12000,
     ercmanager: 13000,
     walletsmanager: 14000,
     chronobankplatform: 15000,
+    roles: 20000,
     platforms: 21000,
     tokenextension: 23000,
     poll_v2: 26000,
     vote_v2: 27000,
+    assets: 30000,
 }
 
 const errorsLibrary = {
@@ -166,6 +167,10 @@ const errorsLibrary = {
     CHRONOBANK_PLATFORM_SHOULD_RECOVER_TO_NEW_ADDRESS: errorScope.chronobankplatform + 12,
     CHRONOBANK_PLATFORM_ASSET_IS_NOT_ISSUED: errorScope.chronobankplatform + 13,
     CHRONOBANK_PLATFORM_INVALID_INVOCATION: errorScope.chronobankplatform + 17,
+
+    ROLES_ALREADY_EXISTS: errorScope.roles + 1,
+    ROLES_INVALID_INVOCATION: errorScope.roles + 2,
+    ROLES_NOT_FOUND: errorScope.roles + 3,
 
     PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS: errorScope.platforms + 1,
     PLATFORMS_PLATFORM_DOES_NOT_EXIST: errorScope.platforms + 2,

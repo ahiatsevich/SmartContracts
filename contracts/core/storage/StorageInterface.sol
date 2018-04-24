@@ -53,6 +53,10 @@ library StorageInterface {
         Mapping innerMapping;
     }
 
+    struct AddressBoolMapping {
+        Mapping innerMapping;
+    }
+
     struct AddressUIntMapping {
         Mapping innerMapping;
     }
@@ -82,6 +86,14 @@ library StorageInterface {
     }
 
     struct AddressUIntUIntMapping {
+        Mapping innerMapping;
+    }
+
+    struct AddressBytes4BoolMapping {
+        Mapping innerMapping;
+    }
+
+    struct AddressBytes4Bytes32Mapping {
         Mapping innerMapping;
     }
 
@@ -229,6 +241,14 @@ library StorageInterface {
         init(self.innerMapping, _id);
     }
 
+    function init(AddressBytes4BoolMapping storage self, bytes32 _id) internal {
+        init(self.innerMapping, _id);
+    }
+
+    function init(AddressBytes4Bytes32Mapping storage self, bytes32 _id) internal {
+        init(self.innerMapping, _id);
+    }
+
     function init(UIntAddressUIntMapping storage self, bytes32 _id) internal {
         init(self.innerMapping, _id);
     }
@@ -246,6 +266,10 @@ library StorageInterface {
     }
 
     function init(UIntAddressAddressBoolMapping storage self, bytes32 _id) internal {
+        init(self.innerMapping, _id);
+    }
+    
+    function init(AddressBoolMapping storage self, bytes32 _id) internal {
         init(self.innerMapping, _id);
     }
 
@@ -417,6 +441,10 @@ library StorageInterface {
         set(self, item.innerMapping, _key, bytes32(_value));
     }
 
+    function set(Config storage self, AddressBoolMapping storage item, address _key, bool _value) internal {
+        set(self, item.innerMapping, bytes32(_key), toBytes32(_value));
+    }
+
     function set(Config storage self, AddressUIntMapping storage item, address _key, uint _value) internal {
         set(self, item.innerMapping, bytes32(_key), bytes32(_value));
     }
@@ -435,6 +463,14 @@ library StorageInterface {
 
     function set(Config storage self, AddressUIntUIntMapping storage item, address _key, uint _key2, uint _value) internal {
         set(self, item.innerMapping, bytes32(_key), bytes32(_key2), bytes32(_value));
+    }
+
+    function set(Config storage self, AddressBytes4BoolMapping storage item, address _key, bytes4 _key2, bool _value) internal {
+        set(self, item.innerMapping, bytes32(_key), bytes32(_key2), toBytes32(_value));
+    }
+
+    function set(Config storage self, AddressBytes4Bytes32Mapping storage item, address _key, bytes4 _key2, bytes32 _value) internal {
+        set(self, item.innerMapping, bytes32(_key), bytes32(_key2), _value);
     }
 
     function set(Config storage self, UIntAddressUIntMapping storage item, uint _key, address _key2, uint _value) internal {
@@ -730,6 +766,10 @@ library StorageInterface {
     function get(Config storage self, UIntBytes32Mapping storage item, uint _key) internal view returns (bytes32) {
         return get(self, item.innerMapping, bytes32(_key));
     }
+    
+    function get(Config storage self, AddressBoolMapping storage item, address _key) internal view returns (bool) {
+        return toBool(get(self, item.innerMapping, bytes32(_key)));
+    }
 
     function get(Config storage self, AddressUIntMapping storage item, address _key) internal view returns (uint) {
         return uint(get(self, item.innerMapping, bytes32(_key)));
@@ -761,6 +801,14 @@ library StorageInterface {
 
     function get(Config storage self, AddressUIntUIntMapping storage item, address _key, uint _key2) internal view returns (uint) {
         return uint(get(self, item.innerMapping, bytes32(_key), bytes32(_key2)));
+    }
+
+    function get(Config storage self, AddressBytes4BoolMapping storage item, address _key, bytes4 _key2) internal view returns (bool) {
+        return toBool(get(self, item.innerMapping, bytes32(_key), bytes32(_key2)));
+    }
+
+    function get(Config storage self, AddressBytes4Bytes32Mapping storage item, address _key, bytes4 _key2) internal view returns (bytes32) {
+        return get(self, item.innerMapping, bytes32(_key), bytes32(_key2));
     }
 
     function get(Config storage self, UIntAddressUIntMapping storage item, uint _key, address _key2) internal view returns (uint) {
@@ -1136,8 +1184,10 @@ library StorageInterface {
         });
     }
 
-    function getNextWithIterator(Config storage self, OrderedSet storage item, Iterator iterator) internal returns (bytes32 _nextValue) {
-        if (!canGetNextWithIterator(self, item, iterator)) { revert(); }
+    function getNextWithIterator(Config storage self, OrderedSet storage item, Iterator iterator) internal view returns (bytes32 _nextValue) {
+        if (!canGetNextWithIterator(self, item, iterator)) { 
+            revert(); 
+        }
 
         _nextValue = iterator.currentValue;
 
@@ -1145,23 +1195,23 @@ library StorageInterface {
         iterator.valuesLeft -= 1;
     }
 
-    function getNextWithIterator(Config storage self, OrderedUIntSet storage item, Iterator iterator) internal returns (uint _nextValue) {
+    function getNextWithIterator(Config storage self, OrderedUIntSet storage item, Iterator iterator) internal view returns (uint _nextValue) {
         return uint(getNextWithIterator(self, item.innerSet, iterator));
     }
 
-    function getNextWithIterator(Config storage self, OrderedAddressesSet storage item, Iterator iterator) internal returns (address _nextValue) {
+    function getNextWithIterator(Config storage self, OrderedAddressesSet storage item, Iterator iterator) internal view returns (address _nextValue) {
         return address(getNextWithIterator(self, item.innerSet, iterator));
     }
 
-    function getNextWithIterator(Config storage self, Bytes32OrderedSetMapping storage item, Iterator iterator) internal returns (bytes32 _nextValue) {
+    function getNextWithIterator(Config storage self, Bytes32OrderedSetMapping storage item, Iterator iterator) internal view returns (bytes32 _nextValue) {
         return getNextWithIterator(self, item.innerMapping, iterator);
     }
 
-    function getNextWithIterator(Config storage self, UIntOrderedSetMapping storage item, Iterator iterator) internal returns (uint _nextValue) {
+    function getNextWithIterator(Config storage self, UIntOrderedSetMapping storage item, Iterator iterator) internal view returns (uint _nextValue) {
         return uint(getNextWithIterator(self, item.innerMapping, iterator));
     }
 
-    function getNextWithIterator(Config storage self, AddressOrderedSetMapping storage item, Iterator iterator) internal returns (address _nextValue) {
+    function getNextWithIterator(Config storage self, AddressOrderedSetMapping storage item, Iterator iterator) internal view returns (address _nextValue) {
         return address(getNextWithIterator(self, item.innerMapping, iterator));
     }
 
@@ -1193,7 +1243,7 @@ library StorageInterface {
         return canGetNextWithIterator(self, item.innerMapping, iterator);
     }
 
-    function count(Iterator iterator) internal view returns (uint) {
+    function count(Iterator iterator) internal pure returns (uint) {
         return iterator.valuesLeft;
     }
 }
