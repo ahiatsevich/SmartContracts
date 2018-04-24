@@ -19,8 +19,18 @@ contract TimeHolderEmitter is MultiEventsHistoryAdapter {
     /// @dev User deposited into current period
     event Deposit(address token, address who, uint amount);
 
+    /// @dev User lock into current period
+    event Lock(address token, address who, uint amount);
+
     /// @dev Shares withdrawn by a shareholder
     event WithdrawShares(address token, address who, uint amount, address receiver);
+
+    event RegisterUnlockShares(bytes32 registrationId, address token, uint amount, address holder);
+    
+    event UnregisterUnlockShares(bytes32 registrationId);
+
+    /// @dev Shares unlocked by a shareholder
+    event UnlockShares(address token, address who, uint amount, address receiver);
 
     /// @dev Shares withdrawn by a shareholder
     event ListenerAdded(address listener, address token);
@@ -46,8 +56,24 @@ contract TimeHolderEmitter is MultiEventsHistoryAdapter {
         emit Deposit(token, who, amount);
     }
 
+    function emitLock(address token, address who, uint amount) public {
+        emit Lock(token, who, amount);
+    }
+
     function emitWithdrawShares(address token, address who, uint amount, address receiver) public {
         emit WithdrawShares(token, who, amount, receiver);
+    }
+
+    function emitRegisterUnlockShares(bytes32 _registrationId, address _token, uint _amount, address _holder) public {
+        emit RegisterUnlockShares(_registrationId, _token, _amount, _holder);
+    }
+
+    function emitUnregisterUnlockShares(bytes32 _registrationId) public {
+        emit UnregisterUnlockShares(_registrationId);
+    }
+
+    function emitUnlockShares(address token, address who, uint amount, address receiver) public {
+        emit UnlockShares(token, who, amount, receiver);
     }
 
     function emitListenerAdded(address listener, address token) public {
