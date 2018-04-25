@@ -19,6 +19,7 @@ const Rewards = artifacts.require('./Rewards.sol')
 const RewardsWallet = artifacts.require('./RewardsWallet.sol')
 const Storage = artifacts.require('./Storage.sol')
 const UserManager = artifacts.require("./UserManager.sol")
+const Roles2Library = artifacts.require("Roles2Library")
 const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
 const TokenFactory = artifacts.require("./TokenFactory.sol")
 const StorageManager = artifacts.require('StorageManager.sol')
@@ -46,7 +47,8 @@ const contractTypes = {
   VotingDetails: "PollDetails",
   CrowdsaleManager: "CrowdsaleManager",
   TokenExtensionGateway: "TokenExtensionGateway",
-  AssetOwnershipResolver: "AssetOwnershipResolver"
+  AssetOwnershipResolver: "AssetOwnershipResolver",
+  Roles2Library: "Roles2Library",
 }
 
 let storage
@@ -65,6 +67,7 @@ let rewards
 let rewardsWallet
 let votingManager
 let userManager
+let rolesLibrary
 let exchangeManager
 let chronoBankAsset
 let chronoBankAssetProxy
@@ -104,6 +107,7 @@ var setup = function (callback) {
     return Promise.all([
       Storage.deployed(),
       UserManager.deployed(),
+      Roles2Library.deployed(),
       ContractsManager.deployed(),
       PendingManager.deployed(),
       LOCManager.deployed(),
@@ -132,6 +136,7 @@ var setup = function (callback) {
     [
       storage,
       userManager,
+      rolesLibrary,
       contractsManager,
       shareable,
       chronoMint,
@@ -184,6 +189,7 @@ var setup = function (callback) {
     module.exports.rewards = rewards
     module.exports.rewardsWallet = rewardsWallet
     module.exports.userManager = userManager
+    module.exports.rolesLibrary = rolesLibrary
     module.exports.exchangeManager = exchangeManager
     module.exports.chronoBankAsset = chronoBankAsset
     module.exports.chronoBankAssetProxy = chronoBankAssetProxy
