@@ -7,6 +7,7 @@ const ErrorsEnum = require("../common/errors");
 const TimeMachine = require('./helpers/timemachine')
 
 const Clock = artifacts.require('./Clock.sol')
+const Stub = artifacts.require('./Stub.sol')
 const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
 const PendingManager = artifacts.require("./PendingManager.sol")
 const ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol")
@@ -15,6 +16,7 @@ const PollInterface = artifacts.require("./PollInterface.sol")
 const VotingManagerEmitter = artifacts.require("./VotingManagerEmitter.sol")
 const PollEmitter = artifacts.require("./PollEmitter.sol")
 const ERC20Manager = artifacts.require("./ERC20Manager.sol")
+const Roles2Library = artifacts.require("./Roles2Library.sol")
 
 const reverter = new Reverter(web3)
 const timeMachine = new TimeMachine(web3)
@@ -25,12 +27,14 @@ contract('Vote', function(accounts) {
     const owner = accounts[1]
     const owner1 = accounts[2];
     const nonOwner = accounts[7];
+    const middlewareAuthorityAddress = admin // NOTE: look in migrations for setup_roles.js
     const SYMBOL = 'TIME'
     const totalTimeTokens = 100000000
     const timeTokensBalance = 50
     const ACTIVE_POLLS_MAX = 20
 
     let timeTokensToWithdraw75Balance = 75
+    let timeTokensToWithdraw40Balance = 40
     let timeTokensToWithdraw45Balance = 45
     let timeTokensToWithdraw20Balance = 20
     let timeTokensToWithdraw25Balance = 25
@@ -39,6 +43,7 @@ contract('Vote', function(accounts) {
     let votingManager
     let clock
     let timeAddress
+    let helperContract
 
     let proxyForSymbol = async (symbol) => {
         let tokenAddress = await Setup.erc20Manager.getTokenAddressBySymbol.call(symbol)
@@ -79,6 +84,7 @@ contract('Vote', function(accounts) {
         clock = await Clock.deployed()
         let erc20Manager = await ERC20Manager.deployed();
         timeAddress = await erc20Manager.getTokenAddressBySymbol(SYMBOL);
+        helperContract = await Stub.deployed()
         await Setup.setupPromise()
     });
 
@@ -515,12 +521,61 @@ contract('Vote', function(accounts) {
         })
 
         context('manipulate balances', function () {
+            const registeredUnlockId = "0x000000fffffff"
+            const secret = "password123"
+            let secretLock
+
+            before(async () => {
+                secretLock = await helperContract.getHash(secret)
+            })
 
             it('should be able to withdraw 5 TIME tokens from owner1', async () => {
                 let successWithdrawal = await Setup.timeHolder.withdrawShares.call(timeAddress, 5, { from: owner1 })
                 assert.equal(successWithdrawal, ErrorsEnum.OK)
 
                 await Setup.timeHolder.withdrawShares(timeAddress, 5, { from: owner1 })
+
+                let totalShares = await Setup.timeHolder.getDepositBalance.call(timeAddress, owner1)
+                assert.equal(totalShares, timeTokensToWithdraw45Balance)
+            })
+
+            it('should be able to show updated vote balances for poll', async () => {
+                let optionsAndBalances = await pollEntity.getVotesBalances.call()
+                assert.lengthOf(optionsAndBalances, 2)
+
+                let balances = optionsAndBalances[1]
+                assert.equal(balances[0], timeTokensToWithdraw25Balance)
+                assert.equal(balances[1], timeTokensToWithdraw45Balance)
+            })
+
+            it('should be able to lock 5 TIME tokens from owner1', async () => {
+                let successWithdrawal = await Setup.timeHolder.lock.call(timeAddress, 5, { from: owner1 })
+                assert.equal(successWithdrawal, ErrorsEnum.OK)
+
+                await Setup.timeHolder.lock(timeAddress, 5, { from: owner1 })
+
+                let totalShares = await Setup.timeHolder.getDepositBalance.call(timeAddress, owner1)
+                assert.equal(totalShares, timeTokensToWithdraw40Balance)
+            })
+
+            it('should be able to show updated vote balances for poll', async () => {
+                let optionsAndBalances = await pollEntity.getVotesBalances.call()
+                assert.lengthOf(optionsAndBalances, 2)
+
+                let balances = optionsAndBalances[1]
+                assert.equal(balances[0], timeTokensToWithdraw25Balance)
+                assert.equal(balances[1], timeTokensToWithdraw40Balance)
+            })
+
+            it("should be able to unlock 5 TIME tokens for owner1 and show 45 TIME on vote's balance", async () => {
+                const tx = await Setup.timeHolder.registerUnlockShares(registeredUnlockId, timeAddress, 5, owner1, secretLock, { from: middlewareAuthorityAddress })
+                // NOTE: uncomment when middlewareAuthorityAddress != CBE
+                // {
+                //     const event = (await eventsHelper.findEvent([Setup.shareable,], tx, "AddMultisigTx"))[0]
+                //     assert.isDefined(event)
+                //     await pendingManager.confirm(event.args.hash, { from: admin, })
+                // }
+                await Setup.timeHolder.unlockShares(registeredUnlockId, secret, { from: owner })
 
                 let totalShares = await Setup.timeHolder.getDepositBalance.call(timeAddress, owner1)
                 assert.equal(totalShares, timeTokensToWithdraw45Balance)
