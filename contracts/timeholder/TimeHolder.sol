@@ -17,7 +17,7 @@ import "../core/lib/SafeMath.sol";
 
 
 /// @title TimeHolder
-/// @notice Contract allows to block some amount of shares" balance to unlock
+/// @notice Contract allows to block some amount of shares' balance to unlock
 /// functionality inside a system.
 contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
 
@@ -71,6 +71,7 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         _;
     }
 
+    /// @dev Guards from accessing with registered ID key
     modifier onlyNotRegisteredUnlock(bytes32 _registrationId) {
         if (getDepositStorage().isUnlockRegistered(_registrationId)) {
             assembly {
@@ -81,6 +82,7 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         _;
     }
 
+    /// @dev Guards from accessing with not registered ID key
     modifier onlyRegisteredUnlock(bytes32 _registrationId) {
         if (!getDepositStorage().isUnlockRegistered(_registrationId)) {
             assembly {
@@ -91,6 +93,7 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         _;
     }
 
+    /// @dev Guards from accessing with wrong secret
     modifier onlyWithSecret(bytes32 _registrationId, bytes32 _secret) {
         bytes32 _secretLock = getDepositStorage().getRegisteredSecretLock(_registrationId);
         if (keccak256(_secret) != _secretLock) {
@@ -146,20 +149,22 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
     }
 
     /// @notice Gets shares amount deposited by a particular shareholder.
-    /// @param _depositor shareholder address.
-    /// @return shares amount.
+    /// @param _depositor shareholder address
+    /// @return deposited shares amount
     function depositBalance(address _depositor) public view returns (uint) {
         return getDepositBalance(getDefaultShares(), _depositor);
     }
 
+    /// @notice Gets shares amount locked by a particular shareholder
+    /// @return locked shares amount
     function lockedBalance() public view returns (uint) {
         return getLockedBalance(getDefaultShares());
     }
 
-    /// @dev Gets balance of tokens deposited to TimeHolder
+    /// @notice Gets balance of tokens deposited to TimeHolder
     /// @param _token token to check
     /// @param _depositor shareholder address
-    /// @return _balance shares amount.
+    /// @return shares amount
     function getDepositBalance(
         address _token,
         address _depositor
@@ -171,6 +176,9 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         return getDepositStorage().depositBalance(_token, _depositor);
     }
 
+    /// @notice Gets balance of tokens locked in TimeHolder
+    /// @param _token token to check
+    /// @return shares amount
     function getLockedBalance(
         address _token
     )
@@ -250,11 +258,15 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         _emitListenerRemoved(_listener, _token);
     }
 
+    /// @notice Checks if provided address is actual listener for token updates
+    /// @param _token token address which changes listen to
+    /// @param _listener address to check
     function isListener(address _token, address _listener) public view returns (bool) {
         return store.includes(listeners, bytes32(_token), _listener);
     }
 
     /// @notice Sets fee wallet address.
+    /// @param _feeWallet wallet address to which fee will be directed
     function setFeeWallet(address _feeWallet)
     onlyAuthorized
     public
@@ -276,6 +288,14 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         return depositFor(_token, msg.sender, _amount);
     }
 
+    /// @notice Locks deposited shares with provided amount.
+    /// Amount should be less or equal to current deposited balance.
+    /// Used for shares disabling, for example, cross-chain operations.
+    /// Deposited balance will be constantly decreased for a locked amount.
+    /// Emits 'Lock' event.
+    /// @param _token token address of a share
+    /// @param _amount amount of shares to lock
+    /// @return result code of an operation
     function lock(
         address _token, 
         uint _amount
@@ -348,6 +368,16 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         _emitWithdrawShares(_token, msg.sender, _amount, msg.sender);
     }
 
+    /// @notice Registers receiver to allow to unlock locked tokens.
+    /// First of two-steps operation of unlocking tokens.
+    /// Should be called only by specific role (middleware actor or root user).
+    /// Function execution protected by a multisignature.
+    /// @param _registrationId unique identifier to associate this unlock operation
+    /// @param _token token address which was previously locked for some amount
+    /// @param _amount amount of tokens that is supposed to be unlocked
+    /// @param _receiver user who are going to receive locked tokens
+    /// @param _secretLock hashed secret that user should provide to unlock his tokens back
+    /// @return _resultCode. result code of an operation
     function registerUnlockShares(
         bytes32 _registrationId,
         address _token, 
@@ -381,6 +411,14 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         return OK;
     }
 
+    /// @notice Unlocks shares in TimeHolder and deposit them back to user's account.
+    /// Second of two-steps operation of unlocking locked tokens.
+    /// Could be called by anyone: tokens will be transferred only to an actual receiver.
+    /// To perform 'unlock' an amount of locked tokens on this very moment should be greater
+    /// or equal to registered amount of tokens to unlock.
+    /// @param _registrationId unique identifier; was created on 'registerUnlockShares' step
+    /// @param _secret secret that was hashed to prove an actual ownership rights
+    /// @return result code of an operation
     function unlockShares(bytes32 _registrationId, bytes32 _secret)
     onlyRegisteredUnlock(_registrationId)
     onlyWithSecret(_registrationId, _secret)
@@ -405,6 +443,13 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         return OK;
     }
 
+    /// @notice Unlocks locked tokens without a neet to register through middleware.
+    /// Supposed to be used as 'the last resort' solution to withdraw tokens that got stuck
+    /// in TimeHolder.
+    /// The only receiver is contractOwner.
+    /// @param _token token with locked balance
+    /// @param _amount amount of locked token to unlock
+    /// @return result code of an operation
     function forceUnlockShares(
         address _token, 
         uint _amount
@@ -432,6 +477,12 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         return OK;
     }
 
+    /// @notice Unregisters (declines) previously registered unlock operation.
+    /// After unregistration no one could perform 'unlockShares'.
+    /// Registration identifier will be released and will be available to 'registerUnlockshares'.
+    /// Should be called only by specific role (middleware actor or root user).
+    /// @param _registrationId unique identifier; was created on 'registerUnlockShares' step
+    /// @return result code of an operation
     function unregisterUnlockShares(bytes32 _registrationId)
     onlyAuthorizedRole
     onlyRegisteredUnlock(_registrationId)
@@ -444,6 +495,13 @@ contract TimeHolder is RolesBaseManager, TimeHolderEmitter {
         return OK;
     }
 
+    /// @notice Checks state for registered unlock request
+    /// @param _registrationId unique identifier; was created on 'registerUnlockShares' step
+    /// @return {
+    ///     "_token": "token address",   
+    ///     "_amount": "amount of tokens that were locked",   
+    ///     "_receiver": "holder address"   
+    /// }
     function checkUnlockedShares(bytes32 _registrationId) public view returns (
         address _token,
         uint _amount,

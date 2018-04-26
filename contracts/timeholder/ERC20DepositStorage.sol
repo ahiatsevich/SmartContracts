@@ -5,6 +5,7 @@
 
 pragma solidity ^0.4.21;
 
+
 import "../core/common/Managed.sol";
 import "../core/lib/SafeMath.sol";
 
@@ -38,11 +39,16 @@ contract ERC20DepositStorage is Managed {
 
     /// Lock functionality
 
-    StorageInterface.AddressUIntMapping lockedBalancesStorage_v2;
-    StorageInterface.Bytes32UIntMapping registeredUnlockBalancesStorage_v2;
-    StorageInterface.Bytes32AddressMapping registeredUnlockTokenStorage_v2;
-    StorageInterface.Bytes32AddressMapping registeredUnlockReceiverStorage_v2;
-    StorageInterface.Bytes32Bytes32Mapping registeredUnlockSecretLockStorage_v2;
+    /// @dev Total amount of locked balances of a token
+    StorageInterface.AddressUIntMapping lockedBalancesStorage_v2; // (token address => locked amount)
+    /// @dev Requested amount of tokens to unlock
+    StorageInterface.Bytes32UIntMapping registeredUnlockBalancesStorage_v2; // (registration ID => required unlock amount)
+    /// @dev Requested token address to unlock
+    StorageInterface.Bytes32AddressMapping registeredUnlockTokenStorage_v2; // (registration ID => token address)
+    /// @dev Requested recepient to transfer unlocked tokens
+    StorageInterface.Bytes32AddressMapping registeredUnlockReceiverStorage_v2; // (registration ID => recepient address)
+    /// @dev Requested secret hash to check unlock rights
+    StorageInterface.Bytes32Bytes32Mapping registeredUnlockSecretLockStorage_v2; // (registration ID => hashed secret)
 
     /// @dev Restricts access to functions only for TimeHolder sender
     modifier onlyTimeHolder {
@@ -82,7 +88,6 @@ contract ERC20DepositStorage is Managed {
 
     /// @notice Sets shares token address as default token address. Used for supporting TIME tokens
     /// @dev Allowed only for TimeHolder call
-    ///
     /// @param _sharesContract TIME token address
     function setSharesContract(address _sharesContract) onlyTimeHolder public {
         require(_sharesContract != 0x0);
@@ -114,12 +119,10 @@ contract ERC20DepositStorage is Managed {
         return store.count(shareholders_v2, bytes32(_token));
     }
 
-    /// @notice Gets token amount deposited by a particular shareholder.
-    ///
+    /// @notice Gets token amount deposited by a particular shareholder
     /// @param _token token that was deposited
-    /// @param _depositor shareholder address.
-    ///
-    /// @return shares amount.
+    /// @param _depositor shareholder address
+    /// @return shares amount
     function depositBalance(address _token, address _depositor) public view returns (uint _balance) {
         if (_token != store.get(sharesContractStorage)) {
             bytes32 _key = _compileCompositeKey(_token, _depositor);
@@ -129,14 +132,26 @@ contract ERC20DepositStorage is Managed {
         return _depositBalance(bytes32(_depositor));
     }
 
+    /// @notice Gets amount of tokens locked for a particular shareholder
+    /// @param _token token that was locked
+    /// @return shares amount
     function lockBalance(address _token) public view returns (uint) {
         return store.get(lockedBalancesStorage_v2, _token);
     }
 
+    /// @notice Checks if provided unlock was requested
+    /// @param _registrationId unique identifier for unlock two-step operation
     function isUnlockRegistered(bytes32 _registrationId) public view returns (bool) {
         return store.get(registeredUnlockBalancesStorage_v2, _registrationId) != 0;
     }
 
+    /// @notice Gets details about requested unlock
+    /// @param _registrationId unique identifier for unlock two-step operation
+    /// @return {
+    ///     "_token": "token address",   
+    ///     "_amount": "amount of tokens that were locked",   
+    ///     "_receiver": "holder address"   
+    /// }
     function getRegisteredUnlock(bytes32 _registrationId) public view returns (
         address _token,
         uint _amount,
@@ -149,13 +164,14 @@ contract ERC20DepositStorage is Managed {
         );
     }
 
+    /// @notice Gets unlock's secret hash that will be used for checking access rights
+    /// @param _registrationId unique identifier for unlock two-step operation
     function getRegisteredSecretLock(bytes32 _registrationId) public view returns (bytes32) {
         return store.get(registeredUnlockSecretLockStorage_v2, _registrationId);
     }
 
     /// @notice Deposits for a _target for provided _amount of specified tokens
     /// @dev Allowed only for TimeHolder call
-    ///
     /// @param _token token to deposit. Should be in a whitelist
     /// @param _target deposit destination
     /// @param _amount amount of deposited tokens
@@ -193,11 +209,11 @@ contract ERC20DepositStorage is Managed {
         }
     }
 
-    /// @notice Deposits for a _target for provided _amount of specified tokens
+    /// @notice Locks deposits of a _target for provided _amount of specified tokens
     /// @dev Allowed only for TimeHolder call
-    /// @param _token token to deposit. Should be in a whitelist
-    /// @param _target deposit destination
-    /// @param _amount amount of deposited tokens
+    /// @param _token token to lock. Should be in a whitelist
+    /// @param _target deposit holder; whose tokens will be locked
+    /// @param _amount amount of locked tokens
     function lock(
         address _token, 
         address _target, 
@@ -212,6 +228,13 @@ contract ERC20DepositStorage is Managed {
         withdrawShares(_token, _target, _amount);
     }
 
+    /// @notice Registers a request for unlock operation
+    /// @dev Allowed only for TimeHolder call
+    /// @param _registrationId unique identifier to associate this unlock operation
+    /// @param _token token address which was previously locked for some amount
+    /// @param _amount amount of tokens that is supposed to be unlocked
+    /// @param _receiver user who will receive locked tokens
+    /// @param _secretLock hashed secret that user should provide to unlock his tokens back
     function registerUnlock(
         bytes32 _registrationId,
         address _token, 
@@ -228,7 +251,8 @@ contract ERC20DepositStorage is Managed {
         store.set(registeredUnlockSecretLockStorage_v2, _registrationId, _secretLock);
     }
 
-    /// @notice Withdraws tokens back to provided account
+    /// @notice Unlocks token for requested unlock operation. Unlocked tokens are deposited
+    /// right away to a receiver address.
     /// @dev Allowed only for TimeHolder call
     /// @param _registrationId unique identifier to associate this unlock operation
     function unlockShares(bytes32 _registrationId) 
@@ -245,6 +269,11 @@ contract ERC20DepositStorage is Managed {
         _removeRegisteredUnlock(_registrationId);
     }
 
+    /// @notice Unlocks tokens directly without a register operation.
+    /// Doesn't deposit unlocked tokens so the could be transferred directly to a wallet
+    /// @dev Allowed only for TimeHolder call
+    /// @param _token token address which was previously locked for some amount
+    /// @param _amount amount of tokens that is supposed to be unlocked
     function directUnlockShares(address _token, uint _amount)
     onlyTimeHolder
     public
@@ -253,6 +282,9 @@ contract ERC20DepositStorage is Managed {
         store.set(lockedBalancesStorage_v2, _token, _lockedBalance.sub(_amount));
     }
 
+    /// @notice Unregisters (removes) an unlock request.
+    /// @dev Allowed only for TimeHolder call
+    /// @param _registrationId unique identifier to associate this unlock operation
     function unregisterUnlockShares(bytes32 _registrationId) 
     onlyTimeHolder
     public

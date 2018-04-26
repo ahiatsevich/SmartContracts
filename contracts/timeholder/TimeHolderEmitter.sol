@@ -25,8 +25,10 @@ contract TimeHolderEmitter is MultiEventsHistoryAdapter {
     /// @dev Shares withdrawn by a shareholder
     event WithdrawShares(address token, address who, uint amount, address receiver);
 
+    /// @dev Unlock request was registered for specific holder
     event RegisterUnlockShares(bytes32 registrationId, address token, uint amount, address holder);
     
+    /// @dev Unlock request was unregistered
     event UnregisterUnlockShares(bytes32 registrationId);
 
     /// @dev Shares unlocked by a shareholder
