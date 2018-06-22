@@ -8,7 +8,6 @@ pragma solidity ^0.4.21;
 
 import "./ChronoBankPlatform.sol";
 import "../event/MultiEventsHistory.sol";
-import "../common/Owned.sol";
 import "../contracts/ContractsManagerInterface.sol";
 
 

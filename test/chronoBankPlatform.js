@@ -1,5 +1,5 @@
-const MultiEventsHistory = artifacts.require("./MultiEventsHistory.sol");
 const ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
+
 const Setup = require('../setup/setup')
 const ErrorsEnum = require("../common/errors");
 
@@ -11,12 +11,12 @@ contract('ChronoBankPlatform', function(accounts) {
   var reverter = new Reverter(web3);
   afterEach('revert', reverter.revert);
 
-  var UINT_256_MINUS_3 = '1.15792089237316195423570985008687907853269984665640564039457584007913129639933e+77';
-  var UINT_256_MINUS_2 = '1.15792089237316195423570985008687907853269984665640564039457584007913129639934e+77';
-  var UINT_256_MINUS_1 = '1.15792089237316195423570985008687907853269984665640564039457584007913129639935e+77';
-  var UINT_256 = '1.15792089237316195423570985008687907853269984665640564039457584007913129639936e+77';
-  var UINT_255_MINUS_1 = '5.7896044618658097711785492504343953926634992332820282019728792003956564819967e+76';
-  var UINT_255 = '5.7896044618658097711785492504343953926634992332820282019728792003956564819968e+76';
+  var UINT_256 = web3.toBigNumber(2).pow(256);
+  var UINT_256_MINUS_1 = UINT_256.sub(1);
+  var UINT_256_MINUS_2 = UINT_256.sub(2);
+  var UINT_256_MINUS_3 = UINT_256.sub(3);
+  var UINT_255 = web3.toBigNumber(2).pow(255);
+  var UINT_255_MINUS_1 = UINT_255.sub(1);
 
   var BYTES_32 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
   var BITS_257 = '0x10000000000000000000000000000000000000000000000000000000000000000';
@@ -31,19 +31,27 @@ contract('ChronoBankPlatform', function(accounts) {
 
   var chronoBankPlatform;
 
-  before('setup', function(done) {
-    Setup.setup(function () {})
-    .then(() => ChronoBankPlatformTestable.deployed())
-    .then(instance => chronoBankPlatform = instance)
-    .then(() => {
-      return chronoBankPlatform.setupEventsHistory(Setup.multiEventsHistory.address).then(function() {
-          return Setup.multiEventsHistory.authorize(chronoBankPlatform.address)
-      }).then(function() {
-          console.log("setup completed");
-        reverter.snapshot(done);
-      });
-  }).catch((e) => {console.log("setup failed" + e); done(e)});
-  });
+  before('setup', async () => {
+    await reverter.promisifySnapshot();
+
+    await Setup.setupPromise()
+
+    console.log(`$##`);
+    
+    chronoBankPlatform = await ChronoBankPlatformTestable.deployed()
+    console.log(`$## 2`);
+    await Setup.multiEventsHistory.authorize(chronoBankPlatform.address)
+    console.log(`$## 3`);
+    await chronoBankPlatform.setupEventsHistory(Setup.multiEventsHistory.address)
+    console.log(`$## 4`);
+
+    console.info("setup completed");
+    await reverter.promisifySnapshot();
+  })
+
+  after(async () => {
+    await reverter.promisifyRevert(0)
+  })
 
 context("with one CBE key", function(){
   it('should not be possible to issue asset with existing symbol', function() {

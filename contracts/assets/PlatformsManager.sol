@@ -162,6 +162,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     {
         PlatformsFactory factory = PlatformsFactory(store.get(platformsFactory));
         address _platform = factory.createPlatform(getEventsHistory());
+        Storage(_platform).setManager(Manager(lookupManager("StorageManager")));
         store.add(platforms, _platform);
 
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));

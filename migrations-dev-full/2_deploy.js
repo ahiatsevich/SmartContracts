@@ -71,11 +71,35 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Events History: #done`)
 	})
 	.then(async () => {
-		await deployer.deploy(ChronoBankPlatform)
+		await deployer.deploy(SafeMath)
+		await deployer.deploy(StringsLib)
+		await deployer.deploy(SetStorageInterface_v_1_1)
 
-		const platform = await ChronoBankPlatform.deployed()
+		await deployer.link(SetStorageInterface_v_1_1, [ERC20Manager,])
+        
+        console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Libraries deploy: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(Storage)
+		await deployer.deploy(StorageInterface)
+		await deployer.deploy(StorageManager)
+
+		const storage = await Storage.deployed()
+		await storage.setManager(StorageManager.address)
+
 		const history = await MultiEventsHistory.deployed()
+		await history.authorize(StorageManager.address)
 
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Storage Contracts: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankPlatform)
+		
+		const platform = await ChronoBankPlatform.deployed()
+		const storageManager = await StorageManager.deployed()
+		await platform.setManager(storageManager.address)
+		
+		const history = await MultiEventsHistory.deployed()
 		await history.authorize(platform.address)
 		await platform.setupEventsHistory(history.address)
 
@@ -92,10 +116,9 @@ module.exports = (deployer, network, accounts) => {
 			const IS_NOT_REISSUABLE = false
 
 			const platform = await ChronoBankPlatform.deployed()
-
-			await platform.issueAsset(TIME_SYMBOL, 2000000000000, TIME_NAME, TIME_DESCRIPTION, BASE_UNIT, IS_NOT_REISSUABLE)
+			await platform.issueAsset(TIME_SYMBOL, 2000000000000, TIME_NAME, TIME_DESCRIPTION, BASE_UNIT, IS_NOT_REISSUABLE, accounts[0])
 			await deployer.deploy(ChronoBankAssetProxy)
-
+			
 			const proxy = await ChronoBankAssetProxy.deployed()
 			await proxy.init(platform.address, TIME_SYMBOL, TIME_NAME)
 
@@ -122,7 +145,7 @@ module.exports = (deployer, network, accounts) => {
 
 		const platform = await ChronoBankPlatform.deployed()
 
-		await platform.issueAsset(LHT_SYMBOL, 0, LHT_NAME, LHT_DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
+		await platform.issueAsset(LHT_SYMBOL, 0, LHT_NAME, LHT_DESCRIPTION, BASE_UNIT, IS_REISSUABLE, accounts[0])
 		await deployer.deploy(ChronoBankAssetWithFeeProxy)
 
 		const proxy = await ChronoBankAssetWithFeeProxy.deployed()
@@ -137,28 +160,6 @@ module.exports = (deployer, network, accounts) => {
 		await asset.init(ChronoBankAssetWithFeeProxy.address)
 
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetWithFee: #done`)
-	})
-	.then(async () => {
-		await deployer.deploy(SafeMath)
-		await deployer.deploy(StringsLib)
-		await deployer.deploy(SetStorageInterface_v_1_1)
-
-		await deployer.link(SetStorageInterface_v_1_1, [ERC20Manager,])
-
-        console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Libraries deploy: #done`)
-	})
-	.then(async () => {
-		await deployer.deploy(Storage)
-		await deployer.deploy(StorageInterface)
-		await deployer.deploy(StorageManager)
-
-		const storage = await Storage.deployed()
-		await storage.setManager(StorageManager.address)
-
-		const history = await MultiEventsHistory.deployed()
-		await history.authorize(StorageManager.address)
-
-		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Storage Contracts: #done`)
 	})
 	.then(async () => {
 		await deployer.deploy(ContractsManager, Storage.address, 'ContractsManager')
@@ -316,6 +317,9 @@ module.exports = (deployer, network, accounts) => {
 
 			const storageManager = await StorageManager.deployed()
 			await storageManager.giveAccess(AssetsManagerMock.address, 'AssetsManager')
+
+			const testablePlatform = await ChronoBankPlatformTestable.deployed()
+			await testablePlatform.setManager(storageManager.address)
 
 			await deployer.deploy(KrakenPriceTicker, true)
 
