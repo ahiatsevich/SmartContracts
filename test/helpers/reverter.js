@@ -4,7 +4,7 @@ function Reverter(web3) {
     this.snapshotId = 0;
 
     this.revert = (done, id) => {
-        let toSnapshotId = (id !== undefined) ? id : this.snapshotId
+        let toSnapshotId = (id !== undefined) ? (id <= 0 ? 1 : (id > self.snapshotId ? self.snapshotId : id)) : self.snapshotId
 
         web3.currentProvider.sendAsync({
             jsonrpc: "2.0",
