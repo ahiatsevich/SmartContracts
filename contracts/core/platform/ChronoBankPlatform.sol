@@ -54,48 +54,42 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     uint constant CHRONOBANK_PLATFORM_ASSET_IS_NOT_ISSUED = CHRONOBANK_PLATFORM_SCOPE + 13;
     uint constant CHRONOBANK_PLATFORM_INVALID_INVOCATION = CHRONOBANK_PLATFORM_SCOPE + 17;
 
-    /// @title Structure of a particular asset.
-    struct Asset {
-        uint owner;                       // Asset's owner id.
-        uint totalSupply;                 // Asset's total supply.
-        string name;                      // Asset's name, for information purposes.
-        string description;               // Asset's description, for information purposes.
-        bool isReissuable;                // Indicates if asset have dynamic or fixed supply.
-        uint8 baseUnit;                   // Proposed number of decimals.
-        mapping(uint => Wallet) wallets;  // Holders wallets.
-        mapping(uint => bool) partowners; // Part-owners of an asset; have less access rights than owner
-    }
+    /// @title A particular asset
+    /// @dev Asset's owner id
+    StorageInterface.Bytes32UIntMapping assetOwner;
+    /// @dev Asset's total supply
+    StorageInterface.Bytes32UIntMapping assetTotalSupply;
+    /// @dev Asset's name, for information purposes.
+    StorageInterface.Bytes32Bytes32Mapping assetName;
+    /// @dev Indicates if asset have dynamic or fixed supply
+    StorageInterface.Bytes32BoolMapping assetIsReissuable;
+    /// @dev Proposed number of decimals
+    StorageInterface.Bytes32UInt8Mapping assetBaseUnit;
+    /// @dev Holders wallets partowners
+    StorageInterface.Bytes32UIntBoolMapping assetPartowners;
+    /// @dev Holders wallets balance
+    StorageInterface.Bytes32UIntUIntMapping assetWalletBalance;
+    /// @dev Holders wallets allowance
+    StorageInterface.Bytes32UIntUIntUIntMapping assetWalletAllowance;
 
-    /// @title Structure of an asset holder wallet for particular asset.
-    struct Wallet {
-        uint balance;
-        mapping(uint => uint) allowance;
-    }
-
-    /// @title Structure of an asset holder.
-    struct Holder {
-        address addr;                    // Current address of the holder.
-        mapping(address => bool) trust;  // Addresses that are trusted with recovery proocedure.
-    }
-
+    /// @title An asset holder.
     /// @dev Iterable mapping pattern is used for holders.
-    uint public holdersCount;
-    mapping(uint => Holder) public holders;
-
+    StorageInterface.UInt holdersCountStorage;
+    /// @dev Current address of the holder.
+    StorageInterface.UIntAddressMapping holdersAddressStorage;
+    /// @dev Addresses that are trusted with recovery proocedure.
+    StorageInterface.UIntAddressBoolMapping holdersTrustStorage;
     /// @dev This is an access address mapping. Many addresses may have access to a single holder.
-    mapping(address => uint) holderIndex;
+    StorageInterface.AddressUIntMapping holderIndexStorage;
 
     /// @dev List of symbols that exist in a platform
-    bytes32[] public symbols;
-
-    /// @dev Asset symbol to asset mapping.
-    mapping(bytes32 => Asset) public assets;
+    StorageInterface.Set symbolsStorage;
 
     /// @dev Asset symbol to asset proxy mapping.
-    mapping(bytes32 => address) public proxies;
+    StorageInterface.Bytes32AddressMapping proxiesStorage;
 
     /// @dev Co-owners of a platform. Has less access rights than a root contract owner
-    mapping(address => bool) public partowners;
+    StorageInterface.AddressBoolMapping partownersStorage;
 
     /// @dev Should use interface of the emitter, but address of events history.
     StorageInterface.Address eventsHistoryStorage;
@@ -124,14 +118,14 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
 
     /// @dev UNAUTHORIZED if called not by one of partowners or contract's owner
     modifier onlyOneOfContractOwners() {
-        if (contractOwner == msg.sender || partowners[msg.sender]) {
+        if (contractOwner == msg.sender || partowners(msg.sender)) {
             _;
         }
     }
 
     /// @dev Emits Error if called not by asset proxy.
     modifier onlyProxy(bytes32 _symbol) {
-        if (proxies[_symbol] == msg.sender) {
+        if (proxies(_symbol) == msg.sender) {
             _;
         }
     }
@@ -145,6 +139,68 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
 
     function ChronoBankPlatform() StorageAdapter(this, "ChronoBankPlatform") public {
         eventsHistoryStorage.init("eventsHistory");
+        partownersStorage.init("partowners");
+        proxiesStorage.init("proxies");
+        symbolsStorage.init("symbols");
+
+        holdersCountStorage.init("holdersCount");
+        holderIndexStorage.init("holderIndex");
+        holdersAddressStorage.init("holdersAddress");
+        holdersTrustStorage.init("holdersTrust");
+        
+        assetOwner.init("assetOwner");
+        assetTotalSupply.init("assetTotalSupply");
+        assetName.init("assetName");
+        assetIsReissuable.init("assetIsReissuable");
+        assetBaseUnit.init("assetBaseUnit");
+        assetPartowners.init("assetPartowners");
+        assetWalletBalance.init("assetWalletBalance");
+        assetWalletAllowance.init("assetWalletAllowance");
+    }
+
+    /// @dev Asset symbol to asset details.
+    /// @return {
+    ///     "_description": "will be null, since cannot store and return dynamic-sized types in storage (fixed in v0.4.24),
+    /// }
+    function assets(bytes32 _symbol) public view returns (
+        uint _owner,
+        uint _totalSupply,
+        bytes32 _name,
+        string _description,
+        bool _isReissuable,
+        uint8 _baseUnit
+    ) {
+        _owner = store.get(assetOwner, _symbol);
+        _totalSupply = store.get(assetTotalSupply, _symbol);
+        _name = store.get(assetName, _symbol);
+        _isReissuable = store.get(assetIsReissuable, _symbol);
+        _baseUnit = store.get(assetBaseUnit, _symbol);
+    }
+
+    function holdersCount() public view returns (uint) {
+        return store.get(holdersCountStorage);
+    }
+
+    function holders(uint _holderId) public view returns (address) {
+        return store.get(holdersAddressStorage, _holderId);
+    }
+
+    function symbols(uint _idx) public view returns (bytes32) {
+        return store.get(symbolsStorage, _idx);
+    }
+
+    /// @notice Provides a cheap way to get number of symbols registered in a platform
+    /// @return number of symbols
+    function symbolsCount() public view returns (uint) {
+        return store.count(symbolsStorage);
+    }
+
+    function proxies(bytes32 _symbol) public view returns (address) {
+        return store.get(proxiesStorage, _symbol);
+    }
+
+    function partowners(address _address) public view returns (bool) {
+        return store.get(partownersStorage, _address);
     }
 
     /// @notice Adds a co-owner of a contract. Might be more than one co-owner
@@ -152,7 +208,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _partowner a co-owner of a contract
     /// @return result code of an operation
     function addPartOwner(address _partowner) onlyContractOwner public returns (uint) {
-        partowners[_partowner] = true;
+        store.set(partownersStorage, _partowner, true);
         return OK;
     }
 
@@ -161,7 +217,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _partowner a co-owner of a contract
     /// @return result code of an operation
     function removePartOwner(address _partowner) onlyContractOwner public returns (uint) {
-        delete partowners[_partowner];
+        store.set(partownersStorage, _partowner, false);
         return OK;
     }
 
@@ -178,52 +234,46 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         return store.get(eventsHistoryStorage);
     }
 
-    /// @notice Provides a cheap way to get number of symbols registered in a platform
-    /// @return number of symbols
-    function symbolsCount() public view returns (uint) {
-        return symbols.length;
-    }
-
     /// @notice Check asset existance.
     /// @param _symbol asset symbol.
     /// @return asset existance.
     function isCreated(bytes32 _symbol) public view returns (bool) {
-        return assets[_symbol].owner != 0;
+        return store.get(assetOwner, _symbol) != 0x0;
     }
 
     /// @notice Returns asset decimals.
     /// @param _symbol asset symbol.
     /// @return asset decimals.
     function baseUnit(bytes32 _symbol) public view returns (uint8) {
-        return assets[_symbol].baseUnit;
+        return store.get(assetBaseUnit, _symbol);
     }
 
     /// @notice Returns asset name.
     /// @param _symbol asset symbol.
     /// @return asset name.
-    function name(bytes32 _symbol) public view returns (string) {
-        return assets[_symbol].name;
+    function name(bytes32 _symbol) public view returns (bytes32) {
+        return store.get(assetName, _symbol);
     }
 
     /// @notice Returns asset description.
     /// @param _symbol asset symbol.
     /// @return asset description.
     function description(bytes32 _symbol) public view returns (string) {
-        return assets[_symbol].description;
+        return "No description";
     }
 
     /// @notice Returns asset reissuability.
     /// @param _symbol asset symbol.
     /// @return asset reissuability.
     function isReissuable(bytes32 _symbol) public view returns (bool) {
-        return assets[_symbol].isReissuable;
+        return store.get(assetIsReissuable, _symbol);
     }
 
     /// @notice Returns asset owner address.
     /// @param _symbol asset symbol.
     /// @return asset owner address.
     function owner(bytes32 _symbol) public view returns (address) {
-        return holders[assets[_symbol].owner].addr;
+        return store.get(holdersAddressStorage, store.get(assetOwner, _symbol));
     }
 
     /// @notice Check if specified address has asset owner rights.
@@ -231,7 +281,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _symbol asset symbol.
     /// @return owner rights availability.
     function isOwner(address _owner, bytes32 _symbol) public view returns (bool) {
-        return isCreated(_symbol) && (assets[_symbol].owner == getHolderId(_owner));
+        return isCreated(_symbol) && (_assetOwner(_symbol) == getHolderId(_owner));
     }
 
     /// @notice Checks if a specified address has asset owner or co-owner rights.
@@ -240,14 +290,14 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @return owner rights availability.
     function hasAssetRights(address _owner, bytes32 _symbol) public view returns (bool) {
         uint holderId = getHolderId(_owner);
-        return isCreated(_symbol) && (assets[_symbol].owner == holderId || assets[_symbol].partowners[holderId]);
+        return isCreated(_symbol) && (_assetOwner(_symbol) == holderId || store.get(assetPartowners, _symbol, holderId));
     }
 
     /// @notice Returns asset total supply.
     /// @param _symbol asset symbol.
     /// @return asset total supply.
     function totalSupply(bytes32 _symbol) public view returns (uint) {
-        return assets[_symbol].totalSupply;
+        return store.get(assetTotalSupply, _symbol);
     }
 
     /// @notice Returns asset balance for a particular holder.
@@ -263,14 +313,14 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _symbol asset symbol.
     /// @return holder balance.
     function _balanceOf(uint _holderId, bytes32 _symbol) public view returns (uint) {
-        return assets[_symbol].wallets[_holderId].balance;
+        return store.get(assetWalletBalance, _symbol, _holderId);
     }
 
     /// @notice Returns current address for a particular holder id.
     /// @param _holderId holder id.
     /// @return holder address.
     function _address(uint _holderId) public view returns (address) {
-        return holders[_holderId].addr;
+        return store.get(holdersAddressStorage, _holderId);
     }
 
     /// @notice Adds a co-owner for an asset with provided symbol.
@@ -280,7 +330,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @return errorCode result code of an operation
     function addAssetPartOwner(bytes32 _symbol, address _partowner) onlyOneOfOwners(_symbol) public returns (uint) {
         uint holderId = _createHolderId(_partowner);
-        assets[_symbol].partowners[holderId] = true;
+        store.set(assetPartowners, _symbol, holderId, true);
         ChronoBankPlatformEmitter(eventsHistory()).emitOwnershipChange(0x0, _partowner, _symbol);
         return OK;
     }
@@ -292,7 +342,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @return errorCode result code of an operation
     function removeAssetPartOwner(bytes32 _symbol, address _partowner) onlyOneOfOwners(_symbol) public returns (uint) {
         uint holderId = getHolderId(_partowner);
-        delete assets[_symbol].partowners[holderId];
+        store.set(assetPartowners, _symbol, holderId, false);
         ChronoBankPlatformEmitter(eventsHistory()).emitOwnershipChange(_partowner, 0x0, _symbol);
         return OK;
     }
@@ -302,12 +352,12 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _proxyAddress Proxy contract address.
     /// @param _symbol asset symbol.
     /// @return success.
-    function setProxy(address _proxyAddress, bytes32 _symbol) public onlyOneOfContractOwners returns (uint) {
-        if (proxies[_symbol] != 0x0) {
+    function setProxy(address _proxyAddress, bytes32 _symbol) onlyOneOfContractOwners public returns (uint) {
+        if (proxies(_symbol) != 0x0) {
             return CHRONOBANK_PLATFORM_PROXY_ALREADY_EXISTS;
         }
 
-        proxies[_symbol] = _proxyAddress;
+        store.set(proxiesStorage, _symbol, _proxyAddress);
         return OK;
     }
     
@@ -372,8 +422,8 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     ) 
     internal 
     {
-        assets[_symbol].wallets[_fromId].balance = assets[_symbol].wallets[_fromId].balance.sub(_value);
-        assets[_symbol].wallets[_toId].balance = assets[_symbol].wallets[_toId].balance.add(_value);
+        store.set(assetWalletBalance, _symbol, _fromId, store.get(assetWalletBalance, _symbol, _fromId).sub(_value));
+        store.set(assetWalletBalance, _symbol, _toId, store.get(assetWalletBalance, _symbol, _toId).add(_value));
     }
 
     /// @dev Transfers asset balance between holders wallets.
@@ -417,15 +467,26 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
 
         _transferDirect(_fromId, _toId, _value, _symbol);
         // Adjust allowance.
-        if (_fromId != _senderId) {
-            assets[_symbol].wallets[_fromId].allowance[_senderId] = assets[_symbol].wallets[_fromId].allowance[_senderId].sub(_value);
-        }
+        _decrementWalletAllowance(_fromId, _senderId, _value, _symbol);
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
         ChronoBankPlatformEmitter(eventsHistory()).emitTransfer(_address(_fromId), _address(_toId), _symbol, _value, _reference);
         _proxyTransferEvent(_fromId, _toId, _value, _symbol);
         return OK;
+    }
+
+    function _decrementWalletAllowance(
+        uint _fromId,
+        uint _senderId,
+        uint _value,
+        bytes32 _symbol
+    )
+    private 
+    {
+        if (_fromId != _senderId) {
+            store.set(assetWalletAllowance, _symbol, _fromId, _senderId, store.get(assetWalletAllowance, _symbol, _fromId, _senderId).sub(_value));
+        }
     }
 
     /// @dev Transfers asset balance between holders wallets.
@@ -458,11 +519,12 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _value amount to transfer.
     /// @param _symbol asset symbol.
     function _proxyTransferEvent(uint _fromId, uint _toId, uint _value, bytes32 _symbol) internal {
-        if (proxies[_symbol] != 0x0) {
+        address _proxy = proxies(_symbol);
+        if (_proxy != 0x0) {
             // Internal Out Of Gas/Throw: revert this transaction too;
             // Call Stack Depth Limit reached: n/a after HF 4;
             // Recursive Call: safe, all changes already made.
-            ProxyEventsEmitter(proxies[_symbol]).emitTransfer(_address(_fromId), _address(_toId), _value);
+            ProxyEventsEmitter(_proxy).emitTransfer(_address(_fromId), _address(_toId), _value);
         }
     }
 
@@ -470,20 +532,32 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _holder holder address.
     /// @return holder id.
     function getHolderId(address _holder) public view returns (uint) {
-        return holderIndex[_holder];
+        return store.get(holderIndexStorage, _holder);
     }
 
     /// @dev Returns holder id for the specified address, creates it if needed.
     /// @param _holder holder address.
     /// @return holder id.
     function _createHolderId(address _holder) internal returns (uint) {
-        uint holderId = holderIndex[_holder];
-        if (holderId == 0) {
-            holderId = ++holdersCount;
-            holders[holderId].addr = _holder;
-            holderIndex[_holder] = holderId;
+        uint _holderId = getHolderId(_holder);
+        if (_holderId == 0) {
+            _holderId = store.get(holdersCountStorage) + 1;
+            store.set(holderIndexStorage, _holder, _holderId);
+            store.set(holdersAddressStorage, _holderId, _holder);
+            store.set(holdersCountStorage, _holderId);
         }
-        return holderId;
+
+        return _holderId;
+    }
+
+    function _assetOwner(bytes32 _symbol) internal returns (uint) {
+        return store.get(assetOwner, _symbol);
+    }
+
+    function stringToBytes32(string memory source) internal pure returns (bytes32 result) {
+        assembly {
+            result := mload(add(source, 32))
+        }
     }
 
     /// @notice Issues new asset token on the platform.
@@ -550,10 +624,13 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         }
         uint holderId = _createHolderId(_account);
         uint creatorId = _account == msg.sender ? holderId : _createHolderId(msg.sender);
-
-        symbols.push(_symbol);
-        assets[_symbol] = Asset(creatorId, _value, _name, _description, _isReissuable, _baseUnit);
-        assets[_symbol].wallets[holderId].balance = _value;
+        store.add(symbolsStorage, _symbol);
+        store.set(assetOwner, _symbol, creatorId);
+        store.set(assetTotalSupply, _symbol, _value);
+        store.set(assetName, _symbol, stringToBytes32(_name));
+        store.set(assetIsReissuable, _symbol, _isReissuable);
+        store.set(assetBaseUnit, _symbol, _baseUnit);
+        store.set(assetWalletBalance, _symbol, holderId, _value);
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
@@ -575,18 +652,20 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         if (_value == 0) {
             return _error(CHRONOBANK_PLATFORM_INVALID_VALUE);
         }
-        Asset storage asset = assets[_symbol];
+
         // Should have dynamic supply.
-        if (!asset.isReissuable) {
+        if (!store.get(assetIsReissuable, _symbol)) {
             return _error(CHRONOBANK_PLATFORM_CANNOT_REISSUE_FIXED_ASSET);
         }
+
+        uint _totalSupply = store.get(assetTotalSupply, _symbol);
         // Resulting total supply should not overflow.
-        if (asset.totalSupply + _value < asset.totalSupply) {
+        if (_totalSupply + _value < _totalSupply) {
             return _error(CHRONOBANK_PLATFORM_SUPPLY_OVERFLOW);
         }
         uint holderId = getHolderId(msg.sender);
-        asset.wallets[holderId].balance = asset.wallets[holderId].balance.add(_value);
-        asset.totalSupply = asset.totalSupply.add(_value);
+        store.set(assetWalletBalance, _symbol, holderId, store.get(assetWalletBalance, _symbol, holderId).add(_value));
+        store.set(assetTotalSupply, _symbol, _totalSupply.add(_value));
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
@@ -606,14 +685,15 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         if (_value == 0) {
             return _error(CHRONOBANK_PLATFORM_INVALID_VALUE);
         }
-        Asset storage asset = assets[_symbol];
+
         uint holderId = getHolderId(msg.sender);
         // Should have enough tokens.
-        if (asset.wallets[holderId].balance < _value) {
+        uint _holderBalance = store.get(assetWalletBalance, _symbol, holderId);
+        if (_holderBalance < _value) {
             return _error(CHRONOBANK_PLATFORM_NOT_ENOUGH_TOKENS);
         }
-        asset.wallets[holderId].balance = asset.wallets[holderId].balance.sub(_value);
-        asset.totalSupply = asset.totalSupply.sub(_value);
+        store.set(assetWalletBalance, _symbol, holderId, _holderBalance.sub(_value));
+        store.set(assetTotalSupply, _symbol, store.get(assetTotalSupply, _symbol).sub(_value));
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
@@ -636,14 +716,14 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
             return _error(CHRONOBANK_PLATFORM_INVALID_NEW_OWNER);
         }
 
-        Asset storage asset = assets[_symbol];
         uint newOwnerId = _createHolderId(_newOwner);
+        uint _assetOwner = store.get(assetOwner, _symbol);
         // Should pass ownership to another holder.
-        if (asset.owner == newOwnerId) {
+        if (_assetOwner == newOwnerId) {
             return _error(CHRONOBANK_PLATFORM_CANNOT_APPLY_TO_ONESELF);
         }
-        address oldOwner = _address(asset.owner);
-        asset.owner = newOwnerId;
+        address oldOwner = _address(_assetOwner);
+        store.set(assetOwner, _symbol, newOwnerId);
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
@@ -656,7 +736,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _to trustee.
     /// @return trust existance.
     function isTrusted(address _from, address _to) public view returns (bool) {
-        return holders[getHolderId(_from)].trust[_to];
+        return store.get(holdersTrustStorage, getHolderId(_from), _to);
     }
 
     /// @notice Trust an address to perform recovery procedure for the caller.
@@ -673,7 +753,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
             return _error(CHRONOBANK_PLATFORM_ALREADY_TRUSTED);
         }
 
-        holders[fromId].trust[_to] = true;
+        store.set(holdersTrustStorage, fromId, _to, true);
         return OK;
     }
 
@@ -681,7 +761,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _to trustee.
     /// @return success.
     function distrust(address _to) checkTrust(msg.sender, _to) public returns (uint) {
-        holders[getHolderId(msg.sender)].trust[_to] = false;
+        store.set(holdersTrustStorage, getHolderId(msg.sender), _to, false);
         return OK;
     }
 
@@ -702,13 +782,14 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         }
         // We take current holder address because it might not equal _from.
         // It is possible to recover from any old holder address, but event should have the current one.
-        address from = holders[getHolderId(_from)].addr;
-        holders[getHolderId(_from)].addr = _to;
-        holderIndex[_to] = getHolderId(_from);
+        uint _fromHolderId = store.get(holderIndexStorage, _from);
+        address _fromRef = store.get(holdersAddressStorage, _fromHolderId);
+        store.set(holdersAddressStorage, _fromHolderId, _to);
+        store.set(holderIndexStorage, _to, _fromHolderId);
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: revert this transaction too;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitRecovery(from, _to, msg.sender);
+        ChronoBankPlatformEmitter(eventsHistory()).emitRecovery(_fromRef, _to, msg.sender);
         return OK;
     }
 
@@ -741,21 +822,22 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         }
 
         // Double Spend Attack checkpoint
-        if (assets[_symbol].wallets[_senderId].allowance[_spenderId] != 0 && _value != 0) {
+        if (store.get(assetWalletAllowance, _symbol, _senderId, _spenderId) != 0 && _value != 0) {
             return _error(CHRONOBANK_PLATFORM_INVALID_INVOCATION);
         }
 
-        assets[_symbol].wallets[_senderId].allowance[_spenderId] = _value;
+        store.set(assetWalletAllowance, _symbol, _senderId, _spenderId, _value);
 
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: revert this transaction too;
         // Recursive Call: safe, all changes already made.
         ChronoBankPlatformEmitter(eventsHistory()).emitApprove(_address(_senderId), _address(_spenderId), _symbol, _value);
-        if (proxies[_symbol] != 0x0) {
+        address _proxy = proxies(_symbol);
+        if (_proxy != 0x0) {
             // Internal Out Of Gas/Throw: revert this transaction too;
             // Call Stack Depth Limit reached: n/a after HF 4;
             // Recursive Call: safe, all changes already made.
-            ProxyEventsEmitter(proxies[_symbol]).emitApprove(_address(_senderId), _address(_spenderId), _value);
+            ProxyEventsEmitter(_proxy).emitApprove(_address(_senderId), _address(_spenderId), _value);
         }
         return OK;
     }
@@ -825,6 +907,6 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _symbol asset symbol.
     /// @return holder to spender allowance.
     function _allowance(uint _fromId, uint _toId, bytes32 _symbol) internal view returns (uint) {
-        return assets[_symbol].wallets[_fromId].allowance[_toId];
+        return store.get(assetWalletAllowance, _symbol, _fromId, _toId);
     }
 }
