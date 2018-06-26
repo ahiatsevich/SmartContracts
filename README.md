@@ -17,7 +17,8 @@ While looking into details it could be spotted that _ChronoBank Smart Contracts_
 
 The next foundational block in the ecosystem is a top-level contracts module (a handful of managers) that provides all needed interfaces to organize flexible and powerful tools.
 
-[![Smart_Contracts_small_v6-1.png](https://user-images.githubusercontent.com/15607315/41597810-27d290c2-73d7-11e8-8343-f9b0fed654c6.png)](https://user-images.githubusercontent.com/15607315/41597810-27d290c2-73d7-11e8-8343-f9b0fed654c6.png) [PDF version](https://github.com/ChronoBank/SmartContracts/files/2115171/Smart_Contracts_small_v6-1.pdf) for detailed preview.
+[![smartcontracts_small](https://user-images.githubusercontent.com/2529842/41909958-01f5b21a-7951-11e8-907f-ba67f32a9312.png)](https://user-images.githubusercontent.com/2529842/41909958-01f5b21a-7951-11e8-907f-ba67f32a9312.png)
+[PDF version](https://github.com/ChronoBank/SmartContracts/files/2136986/SmartContracts_small.pdf) for detailed preview.
 
 **ContractsManager** plays a role in the central registry which holds references to all services registered in a system.
 
@@ -50,14 +51,15 @@ The key contract is AssetsManager that allows users to build their own tokens, o
 The key contract is WalletManager that give the ability to create wallets for storing tokens and organize multisignature access to its balance and transfers (it's important to note that multisignature mechanism is independently implemented and isn't based on PendingManager contract).
 
 #### Other
-Besides aforementioned modules there are also modules that manipulate tokens (_TIME_ and other _ERC20_) tokens) to allow to:
+Besides aforementioned modules there are also modules that manipulate tokens (_TIME_ and other _ERC20_) tokens to allow to:
 - unlock system's functionality for usage where it is needed to stake some amount of tokens to perform an operation;
-- get rewards for some period of time-based on a number of tokens user had deposited;
-- pay for unique functionality available in a system (such as creating a new platform, issuing a token, starting a token _crowdsale_, creating a _wallet_ and some others).
+- pay for unique functionality available in a system (such as creating a new platform, issuing a token, starting a token _crowdsale_, creating a _wallet_ and some others);
+- transfer some amount of tokens to a sidechain network.
 
-For providing such ability for a system, there were introduced a couple of contracts that are coupled with _Deposit_ and _Feature Fee_ modules. _Deposit_ module includes:
-- **Reward** contract that is responsible for tracking, calculating and withdrawing rewards for token holders (in case of _ChronoBank_ it is TIME tokens).
-- **TimeHolder** keeps track of tokens stacked by users to unlock system's functionalities Feature Fee module organizes an instrument for signing system's functions as payable by system tokens (in case of _ChronoBank_ it is _TIME_ tokens).
+For providing such ability for a system, there is a contract with _Deposit_ and _Feature Fee_ modules. _Deposit_ module includes:
+- **TimeHolder** keeps track of tokens stacked by users to unlock system's functionalities. It also allow to lock/unlock funds that could be transferred to an another chain (using atomic swap technology).
+
+**Feature Fee** module organizes an instrument for signing system's functions as payable by system tokens (in case of _ChronoBank_ it is _TIME_ tokens).
 
 Last but not least is Additionals modules that provided extended functionalities for _ChronoBank_ ecosystem:
 
@@ -73,17 +75,26 @@ A more detailed version of the scheme contains internal entities and connections
 
 As were said _ChronoBank_ ecosystem has its own token called TIME that fuels work of many functions. We gather them in one place to provide a more specific overview of their responsibilities.
 
-[![Smart_Contracts_full_v6-1.png](https://user-images.githubusercontent.com/15607315/41597809-279714c0-73d7-11e8-9f1b-10df1c161372.png)](https://user-images.githubusercontent.com/15607315/41597809-279714c0-73d7-11e8-9f1b-10df1c161372.png) [PDF version](https://github.com/ChronoBank/SmartContracts/files/2115170/Smart_Contracts_full_v6-1.pdf) for detailed preview.
+[![Smart_Contracts_full_v6-1.png](https://user-images.githubusercontent.com/2529842/41909955-019cf224-7951-11e8-8cd9-869fccf29869.png)](https://user-images.githubusercontent.com/2529842/41909955-019cf224-7951-11e8-8cd9-869fccf29869.png) [PDF version](https://github.com/ChronoBank/SmartContracts/files/2136985/SmartContracts_big.pdf) for detailed preview.
 
 #### TimeHolder
 Main contracts:
  - _timeholder/TimeHolder.sol_
 
-(newer version is under construction with support of using multiple ERC20 tokens as shares)
-
 Deposit holder. Allows to deposit/withdraw _TIME_ tokens. Users, who have deposits, are allowed to use some key features of the system such as creating _ERC20_ tokens, starting crowdsale for it, create exchanges and so forth.
 
 Users could deposit and withdraw at any time and those changes will appropriately update functionalities that are bound to **TimeHolder** (such as voting and so forth).
+
+Provides an entry point to transfer tokens to a sidechain network allowing to lock/unlock tokens throughout atomic swaps and middleware layer. Locked tokens could be only unlocked and not available for a withdraw.
+Operations description:
+
+- tokens' lock are performed by calling `TimeHolder#lock(token, amount)`;
+- unlock has an opposite effect and could be called `TimeHolder#unlockShares(registrationID, secret)`
+
+Atomic swaps technique and middleware layer in composition provide a way to transfer tokens in and out of the network to a sidechains. From the zoomed out view it looks like this:
+
+- a user locks his tokens in **TimeHolder**. This operation emits _Lock_ event so middleware layer is able to intercept this action and accrue appropriate amount of tokens to a sidechain network;
+- when user is ready to withdraw back from a sidechain to the main chain then middleware receives some predefined event and registers required number of tokens in TimeHolder to unlock securing `unlock` operation with a secret; user should call `TimeHolder#unlock(registrationID, secret)` with provided secret: unlocked tokens immediately will be transferred to user's account.
 
 _Dev notes_: New functionalities and new contracts could take advantage of using TimeHolder’s shares to secure and restrict their features: developers are able to add new contracts and use ListenerInterface to observe changes in TimeHolder’s deposits - this will unlock an access to notifications about deposit/withdrawal actions made by the user.
 
