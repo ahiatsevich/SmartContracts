@@ -9,6 +9,11 @@ import "../core/platform/ChronoBankPlatform.sol";
 
 // For testing purposes.
 contract ChronoBankPlatformTestable is ChronoBankPlatform {
+
+    function ChronoBankPlatformTestable() public {
+        
+    }
+
     function transfer(address _to, uint _value, bytes32 _symbol) public returns (bool) {
         return transferWithReference(_to, _value, _symbol, "");
     }
