@@ -18,8 +18,27 @@ contract StorageManager is MultiEventsHistoryAdapter, Object {
 
     mapping (address => uint) public authorised;
     mapping (bytes32 => bool) public accessRights;
+    mapping (address => bool) public acl;
 
-    function giveAccess(address _actor, bytes32 _role) onlyContractOwner() returns(uint) {
+    modifier onlyAuthorized {
+        if (msg.sender == contractOwner || acl[msg.sender]) {
+            _;
+        }
+    }
+
+    function authorize(address _address) onlyAuthorized external returns (uint) {
+        require(_address != 0x0);
+        acl[_address] = true;
+        return OK;
+    }
+
+    function revoke(address _address) onlyContractOwner external returns (uint) {
+        require(acl[_address]);
+        delete acl[_address];
+        return OK;
+    }
+
+    function giveAccess(address _actor, bytes32 _role) onlyAuthorized returns(uint) {
         if (!accessRights[sha3(_actor, _role)]) {
             accessRights[sha3(_actor, _role)] = true;
             authorised[_actor] += 1;
@@ -29,7 +48,7 @@ contract StorageManager is MultiEventsHistoryAdapter, Object {
         return OK;
     }
 
-    function blockAccess(address _actor, bytes32 _role) onlyContractOwner() returns(uint) {
+    function blockAccess(address _actor, bytes32 _role) onlyAuthorized returns(uint) {
         if (accessRights[sha3(_actor, _role)]) {
             delete accessRights[sha3(_actor, _role)];
             authorised[_actor] -= 1;
