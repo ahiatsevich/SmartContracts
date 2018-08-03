@@ -6,9 +6,10 @@
 pragma solidity ^0.4.21;
 
 
+import "../core/common/Owned.sol";
 import "../core/common/BaseManager.sol";
+import "../core/storage/StorageManager.sol";
 import "../timeholder/FeatureFeeAdapter.sol";
-import "../core/common/OwnedInterface.sol";
 import "../core/platform/ChronoBankAssetOwnershipManager.sol";
 import "./PlatformsManagerEmitter.sol";
 import "./AssetsManagerInterface.sol";
@@ -17,12 +18,7 @@ import "../core/event/MultiEventsHistory.sol";
 
 
 contract PlatformsFactory {
-    function createPlatform(address eventsHistory) public returns (address);
-}
-
-
-contract OwnedContract {
-    address public contractOwner;
+    function createPlatform(address _stora, address eventsHistory) public returns (address);
 }
 
 
@@ -38,13 +34,13 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     /** Storage keys */
 
     /// @dev address of platforms factory contract
-    StorageInterface.Address platformsFactory;
+    StorageInterface.Address private platformsFactory;
 
     /// @dev DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
-    StorageInterface.OrderedAddressesSet platforms_old;
+    StorageInterface.OrderedAddressesSet private platforms_old;
 
     /// @dev set(address) stands for set(platform)
-    StorageInterface.AddressesSet platforms;
+    StorageInterface.AddressesSet private platforms;
 
     /// @dev Guards methods for only platform owners
     modifier onlyPlatformOwner(address _platform) {
@@ -53,7 +49,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
     }
 
-    function PlatformsManager(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
+    constructor(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
         platformsFactory.init("platformsFactory");
         platforms_old.init("v1platforms"); /// NOTE: DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
         platforms.init("v2platforms");
@@ -125,7 +121,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         store.add(platforms, _platform);
         MultiEventsHistory(getEventsHistory()).authorize(_platform);
 
-        _emitPlatformAttached(_platform, OwnedContract(_platform).contractOwner());
+        _emitter().emitPlatformAttached(_platform, Owned(_platform).contractOwner());
         //TODO: @ahiatsevich: emitAssetsAttached / register in ERC20Manager?
         //TODO: @ahiatsevich: emitOwnersAttaged?
 
@@ -144,7 +140,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         store.remove(platforms, _platform);
         MultiEventsHistory(getEventsHistory()).reject(_platform);
 
-        _emitPlatformDetached(_platform, msg.sender);
+        _emitter().emitPlatformDetached(_platform, msg.sender);
         return OK;
     }
 
@@ -160,9 +156,8 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     featured(_result)
     returns (uint resultCode)
     {
-        PlatformsFactory factory = PlatformsFactory(store.get(platformsFactory));
-        address _platform = factory.createPlatform(getEventsHistory());
-        Storage(_platform).setManager(Manager(lookupManager("StorageManager")));
+        PlatformsFactory _factory = PlatformsFactory(store.get(platformsFactory));
+        address _platform = _factory.createPlatform(_getStorageManager(), getEventsHistory());
         store.add(platforms, _platform);
 
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));
@@ -173,16 +168,21 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
             ChronoBankAssetOwnershipManager(_platform).addPartOwner(_tokenExtension);
         }
 
-        OwnedInterface(_platform).transferContractOwnership(msg.sender);
-        _emitPlatformRequested(_platform, _tokenExtension, msg.sender);
+        Owned(_platform).transferContractOwnership(msg.sender);
 
+        _emitter().emitPlatformRequested(_platform, _tokenExtension, msg.sender);
         _result[0] = OK;
         return OK;
     }
 
     /// @dev Checks if passed platform is owned by msg.sender. PRIVATE
     function _isPlatformOwner(address _platform) private view returns (bool) {
-        return OwnedContract(_platform).contractOwner() == msg.sender;
+        return Owned(_platform).contractOwner() == msg.sender;
+    }
+
+    /// @dev Gets shared storage manager address
+    function _getStorageManager() private view returns (StorageManager) {
+        return StorageManager(lookupManager("SharedStorageManager"));
     }
 
     /**
@@ -190,19 +190,11 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     */
 
     function _emitError(uint _errorCode) private returns (uint) {
-        PlatformsManagerEmitter(getEventsHistory()).emitError(_errorCode);
+        _emitter().emitError(_errorCode);
         return _errorCode;
     }
 
-    function _emitPlatformAttached(address _platform, address _by) private {
-        PlatformsManagerEmitter(getEventsHistory()).emitPlatformAttached(_platform, _by);
-    }
-
-    function _emitPlatformDetached(address _platform, address _by) private {
-        PlatformsManagerEmitter(getEventsHistory()).emitPlatformDetached(_platform, _by);
-    }
-
-    function _emitPlatformRequested(address _platform, address _tokenExtension, address sender) private {
-        PlatformsManagerEmitter(getEventsHistory()).emitPlatformRequested(_platform, _tokenExtension, sender);
+    function _emitter() private view returns (PlatformsManagerEmitter) {
+        return PlatformsManagerEmitter(getEventsHistory());
     }
 }
