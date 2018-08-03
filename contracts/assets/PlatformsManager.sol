@@ -9,6 +9,8 @@ pragma solidity ^0.4.21;
 import "../core/common/Owned.sol";
 import "../core/common/BaseManager.sol";
 import "../core/storage/StorageManager.sol";
+import "../core/contracts/ContractsManager.sol";
+import "../core/storage/StorageManagerFactory.sol";
 import "../timeholder/FeatureFeeAdapter.sol";
 import "../core/platform/ChronoBankAssetOwnershipManager.sol";
 import "./PlatformsManagerEmitter.sol";
@@ -157,7 +159,9 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     returns (uint resultCode)
     {
         PlatformsFactory _factory = PlatformsFactory(store.get(platformsFactory));
-        address _platform = _factory.createPlatform(_getStorageManager(), getEventsHistory());
+        address[] _emptyAuthorities;
+        address _storageManager = _getStorageManagerFactory().createStorageManagerWithSystemAuthorities(msg.sender, ContractsManager(contractsManager), _emptyAuthorities);
+        address _platform = _factory.createPlatform(_storageManager, getEventsHistory());
         store.add(platforms, _platform);
 
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));
@@ -180,9 +184,9 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         return Owned(_platform).contractOwner() == msg.sender;
     }
 
-    /// @dev Gets shared storage manager address
-    function _getStorageManager() private view returns (StorageManager) {
-        return StorageManager(lookupManager("SharedStorageManager"));
+    /// @dev Gets shared storage manager factory address
+    function _getStorageManagerFactory() private view returns (StorageManagerFactory) {
+        return StorageManagerFactory(lookupManager("StorageManagerFactory"));
     }
 
     /**
