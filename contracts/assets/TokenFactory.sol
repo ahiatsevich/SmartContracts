@@ -8,20 +8,22 @@ pragma solidity ^0.4.21;
 
 import "../core/common/Owned.sol";
 import "../core/common/OwnedInterface.sol";
+import "../core/storage/Storage.sol";
 import {ChronoBankAssetProxy as AssetProxy} from "../core/platform/ChronoBankAssetProxy.sol";
 import {ChronoBankAsset as Asset} from "../core/platform/ChronoBankAsset.sol";
 import {ChronoBankAssetWithFee as AssetWithFee} from "../core/platform/ChronoBankAssetWithFee.sol";
+
 //import {ChronoBankAssetWithCallback as AssetWithCallback} from "../core/platform/ChronoBankAssetWithCallback.sol";
 //import {ChronoBankAssetWithFeeAndCallback as AssetWithFeeAndCallback} from "../core/platform/ChronoBankAssetWithFeeAndCallback.sol";
 
 
 contract AssetFactoryInterface {
-    function createAsset() public returns (address);
+    function createAsset(address _storage, bytes32 _crate) public returns (address);
 }
 
 
 contract OwnedAssetFactoryInterface {
-    function createOwnedAsset(address owner) public returns (address);
+    function createOwnedAsset(address _owner, address _storage, bytes32 _crate) public returns (address);
 }
 
 
@@ -33,7 +35,7 @@ contract TokenFactory is Owned {
     mapping (bytes32 => address) public factories;
 
     /// @notice Add asset factory with given type to registry
-    function setAssetFactory(bytes32 _type, address _factory) onlyContractOwner public returns (bool) {
+    function setAssetFactory(bytes32 _type, address _factory) public onlyContractOwner returns (bool) {
         require(_type != 0x0);
         factories[_type] = _factory;
     }
@@ -44,16 +46,16 @@ contract TokenFactory is Owned {
     }
 
     /// @notice Creates asset contract
-    function createAsset(bytes32 _type) public returns (address) {
+    function createAsset(bytes32 _type, address _storage, bytes32 _crate) public returns (address) {
         require(factories[_type] != 0x0);
-        return AssetFactoryInterface(factories[_type]).createAsset();
+        return AssetFactoryInterface(factories[_type]).createAsset(_storage, _crate);
     }
 
     /// @notice Creates owned asset contract
-    function createOwnedAsset(bytes32 _type, address _owner) public returns (address) {
+    function createOwnedAsset(bytes32 _type, address _owner, address _storage, bytes32 _crate) public returns (address) {
         require(factories[_type] != 0x0);
         require(_owner != 0x0);
-        return OwnedAssetFactoryInterface(factories[_type]).createOwnedAsset(_owner);
+        return OwnedAssetFactoryInterface(factories[_type]).createOwnedAsset(_owner, _storage, _crate);
     }
 }
 
@@ -61,9 +63,11 @@ contract TokenFactory is Owned {
 /// @title Creates ChronoBankAsset contract
 contract ChronoBankAssetFactory is AssetFactoryInterface {
 
+    uint constant OK = 1;
+
     /// @notice Creates basic asset contract
-    function createAsset() public returns (address) {
-        return new Asset();
+    function createAsset(address _storage, bytes32 _crate) public returns (address _asset) {
+        _asset = new Asset(Storage(_storage), _crate);
     }
 }
 
@@ -71,10 +75,12 @@ contract ChronoBankAssetFactory is AssetFactoryInterface {
 /// @title Creates ChronoBankAssetWithFee contract
 contract ChronoBankAssetWithFeeFactory is OwnedAssetFactoryInterface {
 
+    uint constant OK = 1;
+    
     /// @notice Creates asset with fee contract
     /// @param _owner of an asset
-    function createOwnedAsset(address _owner) public returns (address) {
-        AssetWithFee asset = new AssetWithFee();
+    function createOwnedAsset(address _owner, address _storage, bytes32 _crate) public returns (address) {
+        AssetWithFee asset = new AssetWithFee(Storage(_storage), _crate);
         asset.transferContractOwnership(_owner);
         return asset;
     }

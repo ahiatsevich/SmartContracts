@@ -1,7 +1,7 @@
 /**
- * Copyright 2017–2018, LaborX PTY
- * Licensed under the AGPL Version 3 license.
- */
+* Copyright 2017–2018, LaborX PTY
+* Licensed under the AGPL Version 3 license.
+*/
 
 pragma solidity ^0.4.21;
 
@@ -9,11 +9,13 @@ pragma solidity ^0.4.21;
 import "./TokenExtensionRouter.sol";
 import "./PlatformTokenExtensionGatewayManagerEmitter.sol";
 import "./../TokenManagementInterface.sol";
+import "../../core/common/Owned.sol";
 import "../../core/contracts/ContractsManagerInterface.sol";
+import "../../core/storage/Storage.sol";
+import "../../core/storage/StorageManager.sol";
 import "../../core/platform/ChronoBankPlatformInterface.sol";
 import "../../core/platform/ChronoBankAssetOwnershipManager.sol";
 import "../../core/platform/ChronoBankAssetProxyInterface.sol";
-import "../../core/common/OwnedInterface.sol";
 import "../../core/contracts/ContractsManagerInterface.sol";
 import "../../core/erc20/ERC20ManagerInterface.sol";
 import "../../core/erc20/ERC20Interface.sol";
@@ -28,15 +30,11 @@ contract ChronoBankAsset {
     function init(ChronoBankAssetProxyInterface _proxy) public returns (bool);
 }
 
-contract PlatformFactory {
-    function createPlatform(address _eventsHistory, address _owner) public returns (address);
-}
-
 
 contract TokenFactoryInterface {
-  function createProxy() public returns (address);
-  function createAsset(bytes32 _type) public returns (address);
-  function createOwnedAsset(bytes32 _type, address _owner) public returns (address);
+    function createProxy() public returns (address);
+    function createAsset(bytes32 _type, address _storage, bytes32 _crate) public returns (address);
+    function createOwnedAsset(bytes32 _type, address _owner, address _storage, bytes32 _crate) public returns (address);
 }
 
 
@@ -53,11 +51,6 @@ contract CrowdsaleManager {
 
 contract BaseCrowdsale {
     function getSymbol() public view returns (bytes32);
-}
-
-
-contract OwnedContract {
-    address public contractOwner;
 }
 
 
@@ -102,14 +95,14 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
 
     /// @dev Guards methods to be called only by platform owner.
     modifier onlyPlatformOwner {
-        if (OwnedContract(platform).contractOwner() == msg.sender
-         || msg.sender == address(this)) 
+        if (msg.sender == Owned(platform).contractOwner() || 
+            msg.sender == address(this)) 
         {
             _;
         }
     }
 
-    function PlatformTokenExtensionGatewayManager() public {
+    constructor() public {
         contractOwner = msg.sender;
     }
 
@@ -120,7 +113,11 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     ///  @param _contractsManager is contract manager, must be not 0x0
     ///  @return OK if newly initialized and everything is OK,
     ///  or REINITIALIZED if storage already contains some data. Will crash in any other cases.
-    function init(address _contractsManager) onlyContractOwner public returns (uint) {
+    function init(address _contractsManager) 
+    public 
+    onlyContractOwner
+    returns (uint) 
+    {
         require(_contractsManager != 0x0);
 
         bool reinitialized = (contractsManager != 0x0);
@@ -135,16 +132,23 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
 
     /// @notice Only owner can call it
     /// @dev Destroy contract and scrub a data
-    function destroy() onlyContractOwner public {
+    function destroy() 
+    public 
+    onlyContractOwner 
+    {
         ContractsManagerInterface(contractsManager).removeContract(this);
-        selfdestruct(msg.sender);
+        suicide(msg.sender);
     }
 
     /// @notice Prepares ownership pass.
     /// Can only be called by current owner.
     /// @param _to address of the next owner. 0x0 is not allowed.
     /// @return success.
-    function changeContractOwnership(address _to) onlyContractOwner public returns (bool) {
+    function changeContractOwnership(address _to) 
+    public 
+    onlyContractOwner 
+    returns (bool) 
+    {
         if (_to == 0x0) {
             return false;
         }
@@ -156,7 +160,10 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     /// @notice Finalize ownership pass.
     /// Can only be called by pending owner.
     /// @return success.
-    function claimContractOwnership() public returns (bool) {
+    function claimContractOwnership() 
+    public 
+    returns (bool) 
+    {
         if (pendingContractOwner != msg.sender) {
             return false;
         }
@@ -170,7 +177,11 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     /// @notice Direct ownership pass without change/claim pattern. Can be invoked only by current contract owner
     /// @param _to the next contract owner
     /// @return `true` if success, `false` otherwise
-    function transferContractOwnership(address _to) onlyContractOwner public returns (bool) {
+    function transferContractOwnership(address _to) 
+    public 
+    onlyContractOwner
+    returns (bool) 
+    {
         if (_to == 0x0) {
             return false;
         }
@@ -191,7 +202,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
 
     /// @notice Gets token and proxy factory
     /// @return factory address
-    function getTokenFactory() constant returns (TokenFactoryInterface) {
+    function getTokenFactory() public view returns (TokenFactoryInterface) {
         return FactoryProvider(lookupManager("AssetsManager")).getTokenFactory();
     }
 
@@ -235,8 +246,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         bool _isMint,
         bytes32 _tokenImageIpfsHash
     )
-    onlyPlatformOwner
     public
+    onlyPlatformOwner
     returns (uint resultCode)
     {
         return _createAssetWithoutFee(_symbol, _name, _description, _value, _decimals, _isMint, _tokenImageIpfsHash, [uint(0)]);
@@ -252,8 +263,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         bytes32 _tokenImageIpfsHash,
         uint[1] memory _result
     )
-    featured(_result)
     private
+    featured(_result)
     returns (uint resultCode)
     {
         resultCode = _prepareAndIssueAssetOnPlatform(_symbol, _name, _description, _value, _decimals, _isMint);
@@ -261,8 +272,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(resultCode);
         }
 
-        address _asset = _createAsset(getTokenFactory());
-        address _token = _bindAssetWithToken(getTokenFactory(), _asset, _symbol, _name, _decimals, _tokenImageIpfsHash);
+        address _asset = _createAsset(_symbol);
+        address _token = _bindAssetWithToken(_asset, _symbol, _name, _decimals, _tokenImageIpfsHash);
 
         _emitAssetCreated(platform, _symbol, _token, msg.sender);
 
@@ -296,8 +307,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         uint32 _feePercent,
         bytes32 _tokenImageIpfsHash
     )
-    onlyPlatformOwner
     public
+    onlyPlatformOwner
     returns (uint resultCode) {
         return _createAssetWithFee(_symbol, _name, _description, _value, _decimals, _isMint, _feeAddress, _feePercent, _tokenImageIpfsHash, [uint(0)]);
     }
@@ -314,8 +325,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         bytes32 _tokenImageIpfsHash,
         uint[1] memory _result
     )
-    featured(_result)
     private
+    featured(_result)
     returns (uint resultCode)
     {
         require(_feeAddress != 0x0);
@@ -325,7 +336,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(resultCode);
         }
 
-        address _token = _bindAssetWithToken(getTokenFactory(), _deployAssetWithFee(getTokenFactory(), _feeAddress, _feePercent), _symbol, _name, _decimals, _tokenImageIpfsHash);
+        address _token = _bindAssetWithToken(_deployAssetWithFee(_symbol, _feeAddress, _feePercent), _symbol, _name, _decimals, _tokenImageIpfsHash);
 
         _emitAssetCreated(platform, _symbol, _token, msg.sender);
 
@@ -338,8 +349,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     /// @param _symbol a token symbol
     /// @return result code of an operation
     function createCrowdsaleCampaign(bytes32 _symbol, bytes32 _crowdsaleFactoryName)
-    onlyPlatformOwner
     public
+    onlyPlatformOwner
     returns (uint)
     {
         return _createCrowdsaleCampaign(_symbol, _crowdsaleFactoryName, [uint(0)]);
@@ -349,8 +360,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
         bytes32 _symbol,
         bytes32 _crowdsaleFactoryName,
         uint[1] memory _result)
-    featured(_result)
     private
+    featured(_result)
     returns (uint)
     {
         require(_symbol != 0x0);
@@ -375,7 +386,11 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     /// @notice Stops token's crowdsale
     /// @param _crowdsale a crowdsale address
     /// @return result result code of an operation
-    function deleteCrowdsaleCampaign(address _crowdsale) onlyPlatformOwner public returns (uint result) {
+    function deleteCrowdsaleCampaign(address _crowdsale) 
+    public 
+    onlyPlatformOwner 
+    returns (uint result) 
+    {
         bytes32 _symbol = BaseCrowdsale(_crowdsale).getSymbol();
         ChronoBankAssetOwnershipManager _assetOwnershipManager = ChronoBankAssetOwnershipManager(getAssetOwnershipManager());
 
@@ -386,7 +401,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(result);
         }
 
-        if(OK != _assetOwnershipManager.removeAssetPartOwner(_symbol, _crowdsale)) revert();
+        if (OK != _assetOwnershipManager.removeAssetPartOwner(_symbol, _crowdsale)) revert();
 
         _emitCrowdsaleCampaignRemoved(platform, _symbol, _crowdsale, msg.sender);
         return OK;
@@ -420,7 +435,6 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
 
     /// @dev Binds asset with proxy and register it in ERC20Manager. PRIVATE
     function _bindAssetWithToken(
-        TokenFactoryInterface _factory, 
         address _asset, 
         bytes32 _symbol, 
         string _name, 
@@ -430,7 +444,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     private 
     returns (address token) 
     {
-        token = _factory.createProxy();
+        token = getTokenFactory().createProxy();
+        
 
         if (OK != ChronoBankPlatformInterface(platform).setProxy(token, _symbol)) revert();
 
@@ -445,21 +460,27 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     }
 
     /// @dev Creates asset with fee and setup according values. PRIVATE
-    /// @param _factory token factory
     /// @param _feeAddress fee destination address
     /// @param _fee fee percent value
-    function _deployAssetWithFee(TokenFactoryInterface _factory, address _feeAddress, uint32 _fee) private returns (address _asset) {
-        _asset = _factory.createOwnedAsset("ChronoBankAssetWithFee", this);
+    function _deployAssetWithFee(bytes32 _crate, address _feeAddress, uint32 _fee) private returns (address _asset) {
+        _asset = getTokenFactory().createOwnedAsset("ChronoBankAssetWithFee", this, platform, _crate);
+        
+        StorageManager _storageManager = StorageManager(Storage(platform).manager());
+        require(OK == _storageManager.giveAccess(_asset, _crate), "Could not provide write access for a created asset");
+
         FeeInterface(_asset).setupFee(_feeAddress, _fee);
         require(MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory()).authorize(_asset));
-        OwnedInterface(_asset).transferContractOwnership(msg.sender);
+        Owned(_asset).transferContractOwnership(msg.sender);
     }
 
     /// @dev Creates asset without fee. PRIVATE
-    /// @param _factory token factory
     /// @return _asset created asset address
-    function _createAsset(TokenFactoryInterface _factory) private returns (address _asset) {
-        _asset = _factory.createAsset("ChronoBankAsset");
+    function _createAsset(bytes32 _crate) private returns (address _asset) {
+        _asset = getTokenFactory().createAsset("ChronoBankAsset", platform, _crate);
+        
+        StorageManager _storageManager = StorageManager(Storage(platform).manager());
+        require(OK == _storageManager.giveAccess(_asset, _crate), "Could not provide write access for a created asset");
+
         require(MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory()).authorize(_asset));
     }
 
@@ -479,7 +500,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     /// @dev Makes search in contractsManager for registered contract by some identifier
     /// @param _identifier string identifier of a manager
     /// @return manager address of a manager, 0x0 if nothing was found
-    function lookupManager(bytes32 _identifier) constant returns (address manager) {
+    function lookupManager(bytes32 _identifier) public view returns (address manager) {
         manager = ContractsManagerInterface(contractsManager).getContractAddressByType(_identifier);
         assert(manager != 0x0);
     }

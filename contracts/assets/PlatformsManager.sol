@@ -9,14 +9,14 @@ pragma solidity ^0.4.21;
 import "../core/common/Owned.sol";
 import "../core/common/BaseManager.sol";
 import "../core/storage/StorageManager.sol";
-import "../core/contracts/ContractsManager.sol";
 import "../core/storage/StorageManagerFactory.sol";
-import "../timeholder/FeatureFeeAdapter.sol";
+import "../core/contracts/ContractsManager.sol";
+import "../core/platform/ChronoBankPlatform.sol";
 import "../core/platform/ChronoBankAssetOwnershipManager.sol";
+import "../core/event/MultiEventsHistory.sol";
+import "../timeholder/FeatureFeeAdapter.sol";
 import "./PlatformsManagerEmitter.sol";
 import "./AssetsManagerInterface.sol";
-import "../core/platform/ChronoBankPlatform.sol";
-import "../core/event/MultiEventsHistory.sol";
 
 
 contract PlatformsFactory {
@@ -159,8 +159,16 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     returns (uint resultCode)
     {
         PlatformsFactory _factory = PlatformsFactory(store.get(platformsFactory));
-        address[] _emptyAuthorities;
-        address _storageManager = _getStorageManagerFactory().createStorageManagerWithSystemAuthorities(msg.sender, ContractsManager(contractsManager), _emptyAuthorities);
+        address[] memory _emptyAuthorities;
+        /** NOTE: We create a new StorageManager for every brand new ChronoBankPlatform contract. 
+                Security considerations according write access to the shared storage that is 
+                chronobank platform instance needs to provide a separate storage manager contract for 
+                every Storage contract.
+            By default we give authorized access (means, allowing system services to give access 
+                to a storage crates to any contracts that they decide needs it) to system services such as
+                PlatformsManager, TokenManagementInterface, etc.
+        */
+        address _storageManager = _getStorageManagerFactory().createStorageManagerWithSystemAuthorities(address(this), ContractsManager(contractsManager), _emptyAuthorities);
         address _platform = _factory.createPlatform(_storageManager, getEventsHistory());
         store.add(platforms, _platform);
 
@@ -170,8 +178,11 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         if (resultCode == OK) {
             _tokenExtension = assetsManager.getTokenExtension(_platform);
             ChronoBankAssetOwnershipManager(_platform).addPartOwner(_tokenExtension);
+            /// NOTE: need to provide authorized access to allow asset creation on a platform
+            StorageManager(_storageManager).authorize(_tokenExtension);
         }
 
+        Owned(_storageManager).transferContractOwnership(msg.sender);
         Owned(_platform).transferContractOwnership(msg.sender);
 
         _emitter().emitPlatformRequested(_platform, _tokenExtension, msg.sender);

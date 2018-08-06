@@ -18,12 +18,11 @@ import "../common/Owned.sol";
 /// Note: all the non constant functions return false instead of throwing in case if state change
 /// didn't happen yet.
 contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
-    
-    /// @dev Fee collecting address, immutable.
-    address public feeAddress;
 
+    /// @dev Fee collecting address, immutable.
+    StorageInterface.Address private feeAddressStorage;
     /// @dev Fee percent, immutable. 1 is 0.01%, 10000 is 100%.
-    uint32 public feePercent;
+    StorageInterface.UInt private feePercentStorage;
 
     /// @dev Allows the call if fee was successfully taken, throws if the call failed in the end.
     modifier takeFee(address _from, uint _fromValue, address _sender, bool[1] memory _success) {
@@ -35,11 +34,36 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
         }
     }
 
+    constructor(Storage _platform, bytes32 _crate) ChronoBankAsset(_platform, _crate) public {
+        feeAddressStorage.init("feeAddress");
+        feePercentStorage.init("feePercent");
+    }
+
+    function feeAddress() 
+    public 
+    view 
+    returns (address) 
+    {
+        return store.get(feeAddressStorage);
+    }
+
+    function feePercent() 
+    public 
+    view 
+    returns (uint32) 
+    {
+        return uint32(store.get(feePercentStorage));
+    }
+
     /// @notice Sets fee collecting address and fee percent.
     /// @param _feeAddress fee collecting address.
     /// @param _feePercent fee percent, 1 is 0.01%, 10000 is 100%.
     /// @return success.
-    function setupFee(address _feeAddress, uint32 _feePercent) onlyContractOwner public returns (bool) {
+    function setupFee(address _feeAddress, uint32 _feePercent) 
+    public 
+    onlyContractOwner 
+    returns (bool) 
+    {
         setFee(_feePercent);
         return setFeeAddress(_feeAddress);
     }
@@ -47,19 +71,26 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
     /// @notice Sets fee address separate from setting fee percent value. Can be set only once
     /// @param _feeAddress fee collecting address
     /// @return result of the operation
-    function setFeeAddress(address _feeAddress) onlyContractOwner public returns (bool) {
-        if (feeAddress == _feeAddress) {
+    function setFeeAddress(address _feeAddress) 
+    public 
+    onlyContractOwner 
+    returns (bool) 
+    {
+        if (feeAddress() == _feeAddress) {
             return false;
         }
 
-        feeAddress = _feeAddress;
+        store.set(feeAddressStorage, _feeAddress);
         return true;
     }
 
     /// @notice Sets fee percent value. Can be changed multiple times
     /// @param _feePercent fee percent, 1 is 0.01%, 10000 is 100%.
-    function setFee(uint32 _feePercent) onlyContractOwner public {
-        feePercent = _feePercent;
+    function setFee(uint32 _feePercent) 
+    public 
+    onlyContractOwner 
+    {
+        store.set(feePercentStorage, _feePercent);
     }
 
     /// @notice Passes execution into modified function with function-modifier partially shared scope.
@@ -94,8 +125,8 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
         address _sender, 
         bool[1] memory _success
     ) 
-    takeFee(_sender, _value, _sender, _success) 
     internal 
+    takeFee(_sender, _value, _sender, _success) 
     returns (bool) 
     {
         _success[0] = super._transferWithReference(_to, _value, _reference, _sender);
@@ -137,8 +168,8 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
         address _sender, 
         bool[1] memory _success
     ) 
-    takeFee(_from, _value, _sender, _success) 
     internal 
+    takeFee(_from, _value, _sender, _success) 
     returns (bool) 
     {
         _success[0] = super._transferFromWithReference(_from, _to, _value, _reference, _sender);
@@ -151,12 +182,19 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
     /// @param _fromValue amount to apply fee percent.
     /// @param _sender initial caller.
     /// @return success.
-    function _transferFee(address _feeFrom, uint _fromValue, address _sender) internal returns (bool) {
+    function _transferFee(
+        address _feeFrom, 
+        uint _fromValue, 
+        address _sender
+    ) 
+    internal 
+    returns (bool) 
+    {
         if (!_subjectToFees(_feeFrom, _fromValue)) {
             return true;
         }
         
-        return super._transferFromWithReference(_feeFrom, feeAddress, calculateFee(_fromValue), "Transaction fee", _sender);
+        return super._transferFromWithReference(_feeFrom, feeAddress(), calculateFee(_fromValue), "Transaction fee", _sender);
     }
 
     /// @dev Check if specified payer and amount are subjects to fees.
@@ -165,17 +203,26 @@ contract ChronoBankAssetWithFee is ChronoBankAsset, Owned {
     ///  - Payer is fee collecting address itself;
     ///  - Amount equals 0;
     /// @return true if fee needs to be taken.
-    function _subjectToFees(address _feeFrom, uint _fromValue) internal view returns (bool) {
-        return feeAddress != 0x0
-            && feeAddress != _feeFrom
+    function _subjectToFees(address _feeFrom, uint _fromValue) 
+    internal 
+    view 
+    returns (bool) 
+    {
+        address _feeAddress = feeAddress();
+        return _feeAddress != 0x0
+            && _feeAddress != _feeFrom
             && _fromValue != 0;
     }
 
     /// @notice Return fee that needs to be taken based on specified amount.
     /// Fee amount is always rounded up.
     /// @return fee amount.
-    function calculateFee(uint _value) public view returns (uint) {
-        uint feeRaw = _value * feePercent;
+    function calculateFee(uint _value) 
+    public 
+    view 
+    returns (uint) 
+    {
+        uint feeRaw = _value * feePercent();
         return (feeRaw / 10000) + (feeRaw % 10000 == 0 ? 0 : 1);
     }
 }
