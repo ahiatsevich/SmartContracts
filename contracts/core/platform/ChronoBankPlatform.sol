@@ -92,13 +92,13 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     StorageInterface.AddressBoolMapping partownersStorage;
 
     /// @dev Should use interface of the emitter, but address of events history.
-    StorageInterface.Address eventsHistoryStorage;
+    address public eventsHistory;
 
     /// @dev Emits Error event with specified error message.
     /// Should only be used if no state changes happened.
     /// @param _errorCode code of an error
     function _error(uint _errorCode) internal returns (uint) {
-        ChronoBankPlatformEmitter(eventsHistory()).emitError(_errorCode);
+        ChronoBankPlatformEmitter(eventsHistory).emitError(_errorCode);
         return _errorCode;
     }
 
@@ -138,7 +138,6 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     }
 
     constructor() StorageAdapter(this, CHRONOBANK_PLATFORM_CRATE) public {
-        eventsHistoryStorage.init("eventsHistory");
         partownersStorage.init("partowners");
         proxiesStorage.init("proxies");
         symbolsStorage.init("symbols");
@@ -226,12 +225,8 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _eventsHistory MultiEventsHistory contract address.
     /// @return success.
     function setupEventsHistory(address _eventsHistory) onlyContractOwner public returns (uint errorCode) {
-        store.set(eventsHistoryStorage, _eventsHistory);
+        eventsHistory = _eventsHistory;
         return OK;
-    }
-
-    function eventsHistory() public view returns (address) {
-        return store.get(eventsHistoryStorage);
     }
 
     /// @notice Check asset existance.
@@ -331,7 +326,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     function addAssetPartOwner(bytes32 _symbol, address _partowner) onlyOneOfOwners(_symbol) public returns (uint) {
         uint holderId = _createHolderId(_partowner);
         store.set(assetPartowners, _symbol, holderId, true);
-        ChronoBankPlatformEmitter(eventsHistory()).emitOwnershipChange(0x0, _partowner, _symbol);
+        ChronoBankPlatformEmitter(eventsHistory).emitOwnershipChange(0x0, _partowner, _symbol);
         return OK;
     }
 
@@ -343,7 +338,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     function removeAssetPartOwner(bytes32 _symbol, address _partowner) onlyOneOfOwners(_symbol) public returns (uint) {
         uint holderId = getHolderId(_partowner);
         store.set(assetPartowners, _symbol, holderId, false);
-        ChronoBankPlatformEmitter(eventsHistory()).emitOwnershipChange(_partowner, 0x0, _symbol);
+        ChronoBankPlatformEmitter(eventsHistory).emitOwnershipChange(_partowner, 0x0, _symbol);
         return OK;
     }
 
@@ -401,7 +396,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
             uint holderId = _createHolderId(addresses[idx]);
 
             _transferDirect(senderId, holderId, value, _symbol);
-            ChronoBankPlatformEmitter(eventsHistory()).emitTransfer(msg.sender, addresses[idx], _symbol, value, "");
+            ChronoBankPlatformEmitter(eventsHistory).emitTransfer(msg.sender, addresses[idx], _symbol, value, "");
 
             success++;
         }
@@ -471,7 +466,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitTransfer(_address(_fromId), _address(_toId), _symbol, _value, _reference);
+        ChronoBankPlatformEmitter(eventsHistory).emitTransfer(_address(_fromId), _address(_toId), _symbol, _value, _reference);
         _proxyTransferEvent(_fromId, _toId, _value, _symbol);
         return OK;
     }
@@ -634,7 +629,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitIssue(_symbol, _value, _address(holderId));
+        ChronoBankPlatformEmitter(eventsHistory).emitIssue(_symbol, _value, _address(holderId));
         return OK;
     }
 
@@ -669,7 +664,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitIssue(_symbol, _value, _address(holderId));
+        ChronoBankPlatformEmitter(eventsHistory).emitIssue(_symbol, _value, _address(holderId));
         _proxyTransferEvent(0, holderId, _value, _symbol);
         return OK;
     }
@@ -697,7 +692,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitRevoke(_symbol, _value, _address(holderId));
+        ChronoBankPlatformEmitter(eventsHistory).emitRevoke(_symbol, _value, _address(holderId));
         _proxyTransferEvent(holderId, 0, _value, _symbol);
         return OK;
     }
@@ -727,7 +722,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: n/a after HF 4;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitOwnershipChange(oldOwner, _newOwner, _symbol);
+        ChronoBankPlatformEmitter(eventsHistory).emitOwnershipChange(oldOwner, _newOwner, _symbol);
         return OK;
     }
 
@@ -789,7 +784,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: revert this transaction too;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitRecovery(_fromRef, _to, msg.sender);
+        ChronoBankPlatformEmitter(eventsHistory).emitRecovery(_fromRef, _to, msg.sender);
         return OK;
     }
 
@@ -831,7 +826,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         // Internal Out Of Gas/Throw: revert this transaction too;
         // Call Stack Depth Limit reached: revert this transaction too;
         // Recursive Call: safe, all changes already made.
-        ChronoBankPlatformEmitter(eventsHistory()).emitApprove(_address(_senderId), _address(_spenderId), _symbol, _value);
+        ChronoBankPlatformEmitter(eventsHistory).emitApprove(_address(_senderId), _address(_spenderId), _symbol, _value);
         address _proxy = proxies(_symbol);
         if (_proxy != 0x0) {
             // Internal Out Of Gas/Throw: revert this transaction too;
