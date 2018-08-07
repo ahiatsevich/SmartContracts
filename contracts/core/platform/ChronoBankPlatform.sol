@@ -54,7 +54,8 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     uint constant CHRONOBANK_PLATFORM_ASSET_IS_NOT_ISSUED = CHRONOBANK_PLATFORM_SCOPE + 13;
     uint constant CHRONOBANK_PLATFORM_INVALID_INVOCATION = CHRONOBANK_PLATFORM_SCOPE + 17;
 
-    /// @title A particular asset
+    bytes32 constant CHRONOBANK_PLATFORM_CRATE = "ChronoBankPlatform";
+
     /// @dev Asset's owner id
     StorageInterface.Bytes32UIntMapping assetOwner;
     /// @dev Asset's total supply
@@ -72,7 +73,6 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @dev Holders wallets allowance
     StorageInterface.Bytes32UIntUIntUIntMapping assetWalletAllowance;
 
-    /// @title An asset holder.
     /// @dev Iterable mapping pattern is used for holders.
     StorageInterface.UInt holdersCountStorage;
     /// @dev Current address of the holder.
@@ -137,7 +137,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         }
     }
 
-    function ChronoBankPlatform() StorageAdapter(this, "ChronoBankPlatform") public {
+    constructor() StorageAdapter(this, CHRONOBANK_PLATFORM_CRATE) public {
         eventsHistoryStorage.init("eventsHistory");
         partownersStorage.init("partowners");
         proxiesStorage.init("proxies");
