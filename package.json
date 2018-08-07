@@ -9,7 +9,7 @@
     "test": "npx truffle test",
     "compile": "npx truffle compile",
     "compile:all": "npx truffle compile --all",
-    "testrpc": "npx ganache-cli -g 1 --gasLimit 4700000 --trace_request true | grep -Ev \"FilterSubprovider|eth_getFilterChanges\"",
+    "testrpc": "npx ganache-cli -g 1 --gasLimit 5700000 --trace_request true --verbose | grep -Ev \"FilterSubprovider|eth_getFilterChanges\"",
     "testgas": "NODE_ENV=gasreportgen ./node_modules/truffle/build/cli.bundled.js test",
     "gasreport": "./scripts/gas-report/gasreport.cli.js"
   },
@@ -51,8 +51,8 @@
   "devDependencies": {
     "@digix/contest": "^0.2.6",
     "@digix/tempo": "^0.2.0",
-    "truffle": "4.1.5",
-    "ganache-cli": "6.1.0",
+    "truffle": "4.1.13",
+    "ganache-cli": "6.1.6",
     "babel-preset-es2015": "^6.24.1",
     "babel-register": "^6.24.1",
     "ethereumjs-wallet": "0.6.0",
