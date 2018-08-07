@@ -8,6 +8,7 @@ pragma solidity ^0.4.21;
 
 import "../core/common/Owned.sol";
 import "../core/common/BaseManager.sol";
+import "../core/storage/Storage.sol";
 import "../core/storage/StorageManager.sol";
 import "../core/storage/StorageManagerFactory.sol";
 import "../core/contracts/ContractsManager.sol";
@@ -20,7 +21,7 @@ import "./AssetsManagerInterface.sol";
 
 
 contract PlatformsFactory {
-    function createPlatform(address _stora, address eventsHistory) public returns (address);
+    function createPlatform(address eventsHistory) public returns (address);
 }
 
 
@@ -33,10 +34,15 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     uint constant ERROR_PLATFORMS_ATTACHING_PLATFORM_ALREADY_EXISTS = ERROR_PLATFORMS_SCOPE + 1;
     uint constant ERROR_PLATFORMS_PLATFORM_DOES_NOT_EXIST = ERROR_PLATFORMS_SCOPE + 2;
 
+    bytes32 constant CHRONOBANK_PLATFORM_CRATE = "ChronoBankPlatform";
+
     /** Storage keys */
 
     /// @dev address of platforms factory contract
     StorageInterface.Address private platformsFactory;
+
+    /// @dev address of storage managers factory contract
+    StorageInterface.Address private storageManagerFactory;
 
     /// @dev DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
     StorageInterface.OrderedAddressesSet private platforms_old;
@@ -53,11 +59,12 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
 
     constructor(Storage _store, bytes32 _crate) BaseManager(_store, _crate) public {
         platformsFactory.init("platformsFactory");
+        storageManagerFactory.init("storageManagerFactory");
         platforms_old.init("v1platforms"); /// NOTE: DEPRECATED. WILL BE REMOVED IN THE NEXT RELEASE
         platforms.init("v2platforms");
     }
 
-    function init(address _contractsManager, address _platformsFactory) onlyContractOwner public returns (uint) {
+    function init(address _contractsManager, address _platformsFactory, address _storageManagerFactory) onlyContractOwner public returns (uint) {
         BaseManager.init(_contractsManager, "PlatformsManager");
 
         /// NOTE: migration loop. WILL BE REMOVED IN THE NEXT RELEASE
@@ -71,6 +78,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         }
 
         store.set(platformsFactory, _platformsFactory);
+        store.set(storageManagerFactory, _storageManagerFactory);
 
         return OK;
     }
@@ -160,6 +168,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
     {
         PlatformsFactory _factory = PlatformsFactory(store.get(platformsFactory));
         address[] memory _emptyAuthorities;
+        address _platform = _factory.createPlatform(getEventsHistory());
         /** NOTE: We create a new StorageManager for every brand new ChronoBankPlatform contract. 
                 Security considerations according write access to the shared storage that is 
                 chronobank platform instance needs to provide a separate storage manager contract for 
@@ -169,7 +178,13 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
                 PlatformsManager, TokenManagementInterface, etc.
         */
         address _storageManager = _getStorageManagerFactory().createStorageManagerWithSystemAuthorities(address(this), ContractsManager(contractsManager), _emptyAuthorities);
-        address _platform = _factory.createPlatform(_storageManager, getEventsHistory());
+        // As for Storage contract to be able to check rights for write
+        Storage(_platform).setManager(Manager(_storageManager));
+        require(
+            OK == StorageManager(_storageManager).giveAccess(_platform, CHRONOBANK_PLATFORM_CRATE),
+            "Cannot give access to Chronobank Platform storage"
+        );
+
         store.add(platforms, _platform);
 
         AssetsManagerInterface assetsManager = AssetsManagerInterface(lookupManager("AssetsManager"));
@@ -197,7 +212,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
 
     /// @dev Gets shared storage manager factory address
     function _getStorageManagerFactory() private view returns (StorageManagerFactory) {
-        return StorageManagerFactory(lookupManager("StorageManagerFactory"));
+        return StorageManagerFactory(store.get(storageManagerFactory));
     }
 
     /**
