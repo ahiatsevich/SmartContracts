@@ -75,7 +75,7 @@ contract StorageManager is Object, StorageManagerEmitter {
     onlyContractOwner 
     returns (uint) 
     {
-        require(_eventsHistory != 0x0);
+        require(_eventsHistory != 0x0, "Events history should not be equal to 0x0");
         _setEventsHistory(_eventsHistory);
         return OK;
     } 
@@ -85,7 +85,7 @@ contract StorageManager is Object, StorageManagerEmitter {
     onlyAuthorized 
     returns (uint) 
     {
-        require(_address != 0x0);
+        require(_address != 0x0, "Cannot authorize address with 0x0");
         acl[_address] = true;
 
         _emitter().emitAuthorizationGranted(_address);
@@ -97,7 +97,7 @@ contract StorageManager is Object, StorageManagerEmitter {
     onlyContractOwner 
     returns (uint) 
     {
-        require(acl[_address]);
+        require(acl[_address], "Revoking address should exist in order to remove it");
         delete acl[_address];
 
         _emitter().emitAuthorizationRevoked(_address);
