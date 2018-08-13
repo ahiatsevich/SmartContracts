@@ -36,7 +36,7 @@ contract Storage is Owned {
 
     modifier onlyAllowed(bytes32 _role) {
         if (msg.sender != address(this) && !manager.isAllowed(msg.sender, _role)) {
-            revert();
+            revert("Cannot access to Storage's `role` by provided account");
         }
         _;
     }
