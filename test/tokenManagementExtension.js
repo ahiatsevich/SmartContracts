@@ -1,11 +1,12 @@
 const Setup = require("../setup/setup")
 const eventsHelper = require('./helpers/eventsHelper')
+const utils = require('./helpers/utils')
 const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
+
 const TokenManagementInterface = artifacts.require("./TokenManagementInterface.sol")
 const PlatformTokenExtensionGatewayManagerEmitter = artifacts.require("./PlatformTokenExtensionGatewayManagerEmitter.sol")
 const ChronoBankPlatform = artifacts.require('./ChronoBankPlatform.sol')
-const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol')
 const RewardsWallet = artifacts.require('./RewardsWallet.sol')
 
 contract("PlatformTokenExtensionGatewayManager", function(accounts) {
@@ -17,11 +18,8 @@ contract("PlatformTokenExtensionGatewayManager", function(accounts) {
 
     const reverter = new Reverter(web3)
 
-    let utils = web3._extend.utils
-    const zeroAddress = '0x' + utils.padLeft(utils.toHex("0").substr(2), 40)
-
     function toBytes32(str) {
-        return utils.padRight(utils.toHex(str), 66)
+        return web3._extend.utils.padRight(web3._extend.utils.toHex(str), 66)
     }
 
     before('setup', function(done) {
@@ -52,7 +50,7 @@ contract("PlatformTokenExtensionGatewayManager", function(accounts) {
             let newPlatformTx = await Setup.platformsManager.createPlatform({ from: owner })
             let event = eventsHelper.extractEvents(newPlatformTx, "PlatformRequested")[0]
             assert.isDefined(event)
-            assert.notEqual(event.args.tokenExtension, zeroAddress)
+            assert.notEqual(event.args.tokenExtension, utils.zeroAddress)
             platformId = event.args.platformId
             platform = await ChronoBankPlatform.at(event.args.platform)
             await platform.claimContractOwnership({ from: owner })
@@ -74,7 +72,7 @@ contract("PlatformTokenExtensionGatewayManager", function(accounts) {
             let tokenAddress = await Setup.erc20Manager.getTokenAddressBySymbol.call(TOKEN_SYMBOL)
             assert.notEqual(tokenAddress, 0x0)
             let tokenMetadata = await Setup.erc20Manager.getTokenMetaData.call(tokenAddress)
-            assert.notEqual(tokenMetadata[0], zeroAddress)
+            assert.notEqual(tokenMetadata[0], utils.zeroAddress)
             assert.equal(tokenMetadata[0], tokenAddress)
             assert.equal(tokenMetadata[2], toBytes32(TOKEN_SYMBOL))
         })
@@ -92,7 +90,7 @@ contract("PlatformTokenExtensionGatewayManager", function(accounts) {
             let tokenAddress = await Setup.erc20Manager.getTokenAddressBySymbol.call(TOKEN_WITH_FEE_SYMBOL)
             assert.notEqual(tokenAddress, 0x0)
             let tokenMetadata = await Setup.erc20Manager.getTokenMetaData.call(tokenAddress)
-            assert.notEqual(tokenMetadata[0], zeroAddress)
+            assert.notEqual(tokenMetadata[0], utils.zeroAddress)
             assert.equal(tokenMetadata[0], tokenAddress)
             assert.equal(tokenMetadata[2], toBytes32(TOKEN_WITH_FEE_SYMBOL))
         })
@@ -105,7 +103,7 @@ contract("PlatformTokenExtensionGatewayManager", function(accounts) {
                 assets.push(asset)
             }
 
-            assert.isAtLeast(assetsCount, 2)
+            assert.isAtLeast(assetsCount.toNumber(), 2)
             assert.include(assets, toBytes32(TOKEN_SYMBOL))
             assert.include(assets, toBytes32(TOKEN_WITH_FEE_SYMBOL))
         })

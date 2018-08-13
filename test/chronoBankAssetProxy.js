@@ -2,14 +2,15 @@ const ChronoBankPlatformTestable = artifacts.require('./ChronoBankPlatformTestab
 const ChronoBankAsset = artifacts.require('./ChronoBankAsset.sol');
 const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol');
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol');
+const StorageManager = artifacts.require("StorageManager");
 const Stub = artifacts.require('./Stub.sol');
 
 const Reverter = require('./helpers/reverter');
-const bytes32 = require('./helpers/bytes32');
-const eventsHelper = require('./helpers/eventsHelper');
+const TimeMachine = require('./helpers/timemachine')
+
 contract('ChronoBankAssetProxy', function(accounts) {
   const reverter = new Reverter(web3);
-  afterEach('revert', reverter.revert);
+  const timemachine = new TimeMachine(web3)
 
   const SYMBOL = 'LHT';
   const NAME = 'Test Name';
@@ -17,60 +18,39 @@ contract('ChronoBankAssetProxy', function(accounts) {
   const VALUE = 1001;
   const BASE_UNIT = 2;
   const IS_REISSUABLE = true;
+
+  let storageManager
   let chronoBankPlatform;
   let chronoBankAsset;
   let chronoBankAssetWithFee;
   let chronoBankAssetProxy;
   let stub;
 
-  const increaseTime = function(seconds) {
-    return new Promise(function(resolve, reject) {
-      try {
-        web3.currentProvider.sendAsync({
-          jsonrpc: '2.0',
-          method: 'evm_increaseTime',
-          id: new Date().getTime(),
-          params: [seconds],
-        }, (err, result) => {
-          if (err) {
-            return reject(err);
-          }
-          resolve(result);
-        });
-      } catch(err) {
-        reject(err);
-      }
-    });
-  };
+  before('setup others', async () => {
+    stub = await Stub.deployed()
+    storageManager = await StorageManager.new()
+    chronoBankPlatform = await ChronoBankPlatformTestable.new()
 
-  before('setup others', function(done) {
-    Stub.deployed()
-    .then(function(instance) {
-      stub = instance;
-      return ChronoBankAsset.new();
-    }).then(function(instance) {
-      chronoBankAsset = instance;
-      return ChronoBankAssetProxy.new();
-    }).then(function(instance) {
-      chronoBankAssetProxy = instance;
-      return ChronoBankPlatformTestable.new();
-    }).then(function(instance) {
-      chronoBankPlatform = instance;
-      return chronoBankPlatform.setupEventsHistory(stub.address);
-    }).then(function() {
-      return chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE);
-    }).then(function() {
-      return chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME);
-    }).then(function() {
-      return chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address);
-    }).then(function() {
-      return chronoBankAsset.init(chronoBankAssetProxy.address);
-    }).then(function() {
-      reverter.snapshot(done);
-    }).catch(done);
+    await chronoBankPlatform.setupEventsHistory(stub.address);
+    await chronoBankPlatform.setManager(storageManager.address)
+    await storageManager.giveAccess(chronoBankPlatform.address, "ChronoBankPlatform")
+
+    chronoBankAsset = await ChronoBankAsset.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
+
+    chronoBankAssetProxy = await ChronoBankAssetProxy.new()
+    await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
+
+    await chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
+    await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
+    await chronoBankAsset.init(chronoBankAssetProxy.address)
+
+    await reverter.promisifySnapshot()
   });
 
-  it('should be possible to upgrade asset implementation', function() {
+  afterEach('revert', reverter.revert);
+
+  it('should be possible to upgrade asset implementation', async () => {
     const sender = accounts[0];
     const receiver = accounts[1];
     var feeAddress = accounts[2];
@@ -78,42 +58,26 @@ contract('ChronoBankAssetProxy', function(accounts) {
     const value1 = 100;
     const value2 = 200;
     const fee = 1;
-    return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL).then(function() {
-      return chronoBankAssetProxy.transfer(receiver, value1);
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(sender);
-    }).then(function(result) {
-      assert.equal(result.valueOf(), VALUE - value1);
-      return chronoBankAssetProxy.balanceOf(receiver);
-    }).then(function(result) {
-      assert.equal(result.valueOf(), value1);
-      return ChronoBankAssetWithFee.new();
-    }).then(function(instance) {
-      chronoBankAssetWithFee = instance;
-      return chronoBankAssetWithFee.init(chronoBankAssetProxy.address);
-    }).then(function() {
-      return chronoBankAssetProxy.proposeUpgrade(chronoBankAssetWithFee.address);
-    }).then(function() {
-      return increaseTime(86400*3); // 3 days
-    }).then(function() {
-      return chronoBankAssetWithFee.setupFee(feeAddress, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.commitUpgrade.call();
-    }).then(function(result) {
-      assert.isTrue(result);
-      return chronoBankAssetProxy.commitUpgrade();
-    }).then(function() {
-      return chronoBankAssetProxy.transfer(receiver, value2);
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(sender);
-    }).then(function(result) {
-      assert.equal(result.valueOf(), VALUE - value1 - value2 - fee);
-      return chronoBankAssetProxy.balanceOf(receiver);
-    }).then(function(result) {
-      assert.equal(result.valueOf(), value1 + value2);
-      return chronoBankAssetProxy.balanceOf(feeAddress);
-    }).then(function(result) {
-      assert.equal(result.valueOf(), fee);
-    });
+
+    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL)
+    await chronoBankAssetProxy.transfer(receiver, value1)
+    assert.equal((await chronoBankAssetProxy.balanceOf(sender)).toString(16), (VALUE - value1).toString(16))
+    assert.equal((await chronoBankAssetProxy.balanceOf(receiver)).toString(16), value1.toString(16))
+
+    chronoBankAssetWithFee = await ChronoBankAssetWithFee.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetWithFee.address, SYMBOL)
+    await chronoBankAssetWithFee.init(chronoBankAssetProxy.address)
+    await chronoBankAssetProxy.proposeUpgrade(chronoBankAssetWithFee.address)
+
+    await timemachine.jump(86400*3) // 3 days
+
+    await chronoBankAssetWithFee.setupFee(feeAddress, feePercent)
+    assert.isTrue(await chronoBankAssetProxy.commitUpgrade.call())
+
+    await chronoBankAssetProxy.commitUpgrade()
+    await chronoBankAssetProxy.transfer(receiver, value2)
+    assert.equal((await chronoBankAssetProxy.balanceOf(sender)).toString(16), (VALUE - value1 - value2 - fee).toString(16))
+    assert.equal((await chronoBankAssetProxy.balanceOf(receiver)).toString(16), (value1 + value2).toString(16))
+    assert.equal((await chronoBankAssetProxy.balanceOf(feeAddress)).toString(16), fee.toString(16))
   });
 });

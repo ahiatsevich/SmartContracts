@@ -26,6 +26,10 @@ contract('Contracts Manager', function(accounts) {
       assert.equal(await Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.ERC20Manager), Setup.erc20Manager.address)
     })
 
+    it("can provide PlatformsManager address.", async () => {
+      assert.equal(await Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.PlatformsManager), Setup.platformsManager.address)
+    })
+
     it("can provide AssetsManager address.", async () => {
       assert.equal(await Setup.contractsManager.getContractAddressByType.call(Setup.contractTypes.AssetsManager), Setup.assetsManager.address)
     })

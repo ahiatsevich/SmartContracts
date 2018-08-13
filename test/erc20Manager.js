@@ -1,6 +1,7 @@
 const FakeCoin = artifacts.require("./FakeCoin.sol")
 const FakeCoin2 = artifacts.require("./FakeCoin2.sol")
 const ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
+const StorageManager = artifacts.require("StorageManager");
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
 const ChronoBankAssetWithFee = artifacts.require("./ChronoBankAssetWithFee.sol");
 const ChronoBankAsset = artifacts.require("./ChronoBankAsset.sol");
@@ -47,6 +48,7 @@ contract('ERC20 Manager', function(accounts) {
     let coin
     let coin2
     let stub
+    let storageManager
     let chronoBankPlatform
     let chronoBankAsset
     let chronoBankAssetProxy
@@ -55,38 +57,33 @@ contract('ERC20 Manager', function(accounts) {
 
     let initialNumberOfTokens = 2
 
-    before('setup', function(done) {
-        Promise.resolve()
-        .then(() => FakeCoin.deployed()).then(instance => coin = instance)
-        .then(() => FakeCoin2.deployed()).then(instance => coin2 = instance)
-        .then(() => Stub.new()).then(instance => stub = instance)
-        .then(() => ChronoBankPlatformTestable.new()).then(instance => chronoBankPlatform = instance)
-        .then(() => chronoBankPlatform.setupEventsHistory(stub.address))
+    before('setup', async () => {
+        coin = await FakeCoin.deployed()
+        coin2 = await FakeCoin2.deployed()
+        stub = await Stub.new()
+        storageManager = await StorageManager.new()
+        chronoBankPlatform = await ChronoBankPlatformTestable.new()
+        await chronoBankPlatform.setupEventsHistory(stub.address)
+        await chronoBankPlatform.setManager(storageManager.address)
+        await storageManager.giveAccess(chronoBankPlatform.address, "ChronoBankPlatform")
 
-        .then(() => ChronoBankAsset.new()).then(instance => chronoBankAsset = instance)
-        .then(() => ChronoBankAssetProxy.new()).then(instance => chronoBankAssetProxy = instance)
-        .then(() => chronoBankAssetProxy.init(chronoBankPlatform.address, TOKEN_SYMBOL, TOKEN_SYMBOL))
-        .then(() => chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address))
-        .then(() => chronoBankAsset.init(chronoBankAssetProxy.address))
+        chronoBankAsset = await ChronoBankAsset.new(chronoBankPlatform.address, TOKEN_SYMBOL)
+        await storageManager.giveAccess(chronoBankAsset.address, TOKEN_SYMBOL)
+        
+        chronoBankAssetProxy = await ChronoBankAssetProxy.new()
+        await chronoBankAssetProxy.init(chronoBankPlatform.address, TOKEN_SYMBOL, TOKEN_SYMBOL)
+        await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
+        await chronoBankAsset.init(chronoBankAssetProxy.address)
+        
+        chronoBankAssetWithFee = await ChronoBankAssetWithFee.new(chronoBankPlatform.address, TOKEN_2_SYMBOL)
+        await storageManager.giveAccess(chronoBankAssetWithFee.address, TOKEN_2_SYMBOL)
 
-        .then(() => ChronoBankAssetWithFee.new()).then(instance => chronoBankAssetWithFee = instance)
-        .then(() => ChronoBankAssetProxy.new()).then(instance => chronoBankAssetWithFeeProxy = instance)
-        .then(() => chronoBankAssetWithFeeProxy.init(chronoBankPlatform.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL))
-        .then(() => chronoBankAssetWithFeeProxy.proposeUpgrade(chronoBankAssetWithFee.address))
-        .then(() => chronoBankAssetWithFee.init(chronoBankAssetWithFeeProxy.address))
+        chronoBankAssetWithFeeProxy = await ChronoBankAssetProxy.new()
+        await chronoBankAssetWithFeeProxy.init(chronoBankPlatform.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL)
+        await chronoBankAssetWithFeeProxy.proposeUpgrade(chronoBankAssetWithFee.address)
+        await chronoBankAssetWithFee.init(chronoBankAssetWithFeeProxy.address)
 
-        .then(() => {
-            return new Promise(function(resolve, reject) {
-                Setup.setup(error => {
-                    if (error) {
-                        reject(error)
-                    } else {
-                        resolve()
-                    }
-                })
-            })
-        })
-        .then(() => reverter.snapshot(done)).catch(done);
+        await reverter.promisifySnapshot()
     })
 
     context("initial tests", function() {

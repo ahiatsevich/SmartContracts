@@ -3,6 +3,7 @@ const eventsHelper = require('./helpers/eventsHelper')
 const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
 const ChronoBankPlatform = artifacts.require("./ChronoBankPlatform.sol")
+const StorageManager = artifacts.require("StorageManager")
 const TokenManagementInterface = artifacts.require('./TokenManagementInterface.sol')
 const PlatformsManagerDammyDeprecated = artifacts.require('./PlatformsManagerDammyDeprecated.sol')
 const PlatformsManager = artifacts.require('./PlatformsManager.sol')
@@ -18,7 +19,10 @@ contract("PlatformsManager", function (accounts) {
     const reverter = new Reverter(web3)
 
     const createPlatform = async (platformOwner) => {
+        const storageManager = await StorageManager.new()
         let createdPlatform = await ChronoBankPlatform.new({ from: platformOwner })
+        await createdPlatform.setManager(storageManager.address)
+        await storageManager.giveAccess(createdPlatform.address, "ChronoBankPlatform")
         await createdPlatform.setupEventsHistory(Setup.multiEventsHistory.address, { from: platformOwner })
         await Setup.multiEventsHistory.authorize(createdPlatform.address, { from: systemOwner })
         return createdPlatform
@@ -53,7 +57,7 @@ contract("PlatformsManager", function (accounts) {
     const deployNewPlatformsManager = async () => {
         let platformsManager = await PlatformsManager.new(Setup.storage.address, "PlatformsManager")
         await Setup.storageManager.giveAccess(platformsManager.address, "PlatformsManager")
-        await platformsManager.init(Setup.contractsManager.address, ChronoBankPlatformFactory.address)
+        await platformsManager.init(Setup.contractsManager.address, ChronoBankPlatformFactory.address, Setup.storageManagerFactory.address)
         await Setup.multiEventsHistory.authorize(platformsManager.address)
 
         return platformsManager
@@ -255,7 +259,7 @@ contract("PlatformsManager", function (accounts) {
         })
 
         it('creating asset should spawn events from a platform', async () => {
-            let issueAssetTx = await platform.issueAsset(tokenSymbol, totalTokensBalance, "test token", "some description", 2, true, { from: owner })
+            let issueAssetTx = await platform.issueAsset(tokenSymbol, totalTokensBalance, "test token", "some description", 2, true, owner, { from: owner })
             let issueEvent = eventsHelper.extractEvents(issueAssetTx, "Issue")[0]
             assert.isDefined(issueEvent)
             assert.equal(totalTokensBalance, issueEvent.args.value.toNumber())

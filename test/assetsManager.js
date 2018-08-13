@@ -7,7 +7,7 @@ const utils = require("./helpers/utils")
 const ChronoBankAsset = artifacts.require('ChronoBankAsset')
 const ChronoBankAssetProxy = artifacts.require('ChronoBankAssetProxy')
 const ChronoBankPlatform = artifacts.require('ChronoBankPlatform')
-const ChronoBankPlatformInterface = artifacts.require('ChronoBankPlatformInterface')
+const StorageManager = artifacts.require('StorageManager')
 const TokenManagementInterface = artifacts.require("TokenManagementInterface")
 const PlatformTokenExtensionGatewayManagerEmitter = artifacts.require("PlatformTokenExtensionGatewayManagerEmitter")
 
@@ -23,11 +23,6 @@ contract('Assets Manager', function(accounts) {
 
     const reverter = new Reverter(web3)
 
-    var unix = Math.round(+new Date()/1000)
-    let utils = web3._extend.utils
-
-    const zeroAddress = '0x' + utils.padLeft(utils.toHex("0").substr(2), 40)
-
     before('setup', async () => {
         await Setup.setupPromise()
         await reverter.promisifySnapshot()
@@ -37,12 +32,12 @@ contract('Assets Manager', function(accounts) {
         context("properties check", function () {
             it("should have token factory setup", async () => {
                 let tokenFactory = await Setup.assetsManager.getTokenFactory.call()
-                assert.notEqual(tokenFactory, zeroAddress)
+                assert.notEqual(tokenFactory, utils.zeroAddress)
             })
 
             it("should have token extension management factory setup", async () => {
                 let tokenExtensionFactory = await Setup.assetsManager.getTokenExtensionFactory.call()
-                assert.notEqual(tokenExtensionFactory, zeroAddress)
+                assert.notEqual(tokenExtensionFactory, utils.zeroAddress)
             })
         })
 
@@ -57,12 +52,12 @@ contract('Assets Manager', function(accounts) {
                 assert.isDefined(event)
                 platform = await ChronoBankPlatform.at(event.args.platform)
                 platformToId = event.args.platformId
-                assert.notEqual(event.args.tokenExtension, zeroAddress)
+                assert.notEqual(event.args.tokenExtension, utils.zeroAddress)
             })
 
             it("should have a tokenExtension for a platform", async () => {
                 let tokenExtensionAddress = await Setup.assetsManager.getTokenExtension.call(platform.address)
-                assert.notEqual(tokenExtensionAddress, zeroAddress)
+                assert.notEqual(tokenExtensionAddress, utils.zeroAddress)
             })
 
             it("should have the same token extension if it already exists", async () => {
@@ -125,11 +120,13 @@ contract('Assets Manager', function(accounts) {
     context("AssetsManager statistics", () => {
 
         const createToken = async (platform, symbol, owner) => {
+            const storageManager = await StorageManager.at(await platform.manager())
             const proxy = await ChronoBankAssetProxy.new({ from: owner, })
-            await platform.issueAsset(symbol, 10000, symbol, "", 2, false, { from: systemOwner, })
+            await platform.issueAsset(symbol, 10000, symbol, "", 2, false, owner, { from: systemOwner, })
             await platform.changeOwnership(symbol, owner, { from: systemOwner, })
             await proxy.init(platform.address, symbol, symbol)
-            const asset = await ChronoBankAsset.new({ from: owner, })
+            const asset = await ChronoBankAsset.new(platform.address, symbol, { from: owner, })
+            await storageManager.giveAccess(asset.address, symbol)
             await asset.init(proxy.address, { from: owner, })
             await proxy.proposeUpgrade(asset.address, { from: owner, })
             await platform.setProxy(proxy.address, symbol, { from: systemOwner, });

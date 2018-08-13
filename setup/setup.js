@@ -22,6 +22,7 @@ const Roles2Library = artifacts.require("Roles2Library")
 const MultiEventsHistory = artifacts.require('./MultiEventsHistory.sol')
 const TokenFactory = artifacts.require("./TokenFactory.sol")
 const StorageManager = artifacts.require('StorageManager.sol')
+const StorageManagerFactory = artifacts.require('StorageManagerFactory.sol')
 const PollBackendProvider = artifacts.require('PollBackendProvider.sol')
 const VotingManager = artifacts.require('VotingManager.sol')
 const PlatformTokenExtensionGatewayManager = artifacts.require('./PlatformTokenExtensionGatewayManager.sol')
@@ -38,6 +39,7 @@ const contractTypes = {
   Voting: "PollManager", // Voting
   VotingManager: "VotingManager", // Voting v.2
   AssetsManager: "AssetsManager", // AssetsManager
+  PlatformsManager: "PlatformsManager", // PlatformsManager
   TimeHolder: "TimeHolder", //TimeHolder
   CrowdsaleManager: "CrowdsaleManager",
   // DEPRECATED
@@ -74,6 +76,7 @@ let chronoBankAssetWithFee
 let chronoBankAssetWithFeeProxy
 let multiEventsHistory
 let storageManager
+let storageManagerFactory
 let crowdsaleManager
 let tokenExtensionGateway
 
@@ -128,6 +131,7 @@ var setup = function (callback) {
       TimeHolderWallet.deployed(),
       MultiEventsHistory.deployed(),
       StorageManager.deployed(),
+      StorageManagerFactory.deployed(),
       PlatformTokenExtensionGatewayManager.deployed(),
       //CrowdsaleManager.deployed()
     ])
@@ -157,6 +161,7 @@ var setup = function (callback) {
       timeHolderWallet,
       multiEventsHistory,
       storageManager,
+      storageManagerFactory,
       tokenExtensionGateway,
       assetOwnershipDelegateResolver
       //crowdsaleManager
@@ -197,6 +202,7 @@ var setup = function (callback) {
     module.exports.votingManager = votingManager // voting v.2
     module.exports.multiEventsHistory = multiEventsHistory
     module.exports.storageManager = storageManager
+    module.exports.storageManagerFactory = storageManagerFactory
     module.exports.tokenExtensionGateway = tokenExtensionGateway
 
     //module.exports.crowdsaleManager = crowdsaleManager

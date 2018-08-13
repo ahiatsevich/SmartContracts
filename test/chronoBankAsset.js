@@ -1,11 +1,13 @@
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
 var ChronoBankAsset = artifacts.require("./ChronoBankAsset.sol");
 var ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
+const StorageManager = artifacts.require("StorageManager");
 var Stub = artifacts.require("./Stub.sol");
 
 var Reverter = require('./helpers/reverter');
 var bytes32 = require('./helpers/bytes32');
 var eventsHelper = require('./helpers/eventsHelper');
+
 contract('ChronoBankAsset', function(accounts) {
   var reverter = new Reverter(web3);
   afterEach('revert', reverter.revert);
@@ -24,32 +26,26 @@ contract('ChronoBankAsset', function(accounts) {
   var chronoBankAssetProxy;
   var stub;
 
-  before('setup others', function(done) {
-    Stub.new().then(function(instance) {
-    stub = instance;
-    ChronoBankAsset.new().then(function(instance) {
-    chronoBankAsset = instance;
-    ChronoBankAssetProxy.new().then(function(instance) {
-    chronoBankAssetProxy = instance;
-    ChronoBankPlatformTestable.new().then(function(instance) {
-    chronoBankPlatform = instance;
-    chronoBankPlatform.setupEventsHistory(stub.address).then(function() {
-      return chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE);
-    }).then(function() {
-      return chronoBankPlatform.issueAsset(SYMBOL2, VALUE2, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE);
-    }).then(function() {
-      return chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME);
-    }).then(function() {
-      return chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address);
-    }).then(function() {
-      return chronoBankAsset.init(chronoBankAssetProxy.address);
-    }).then(function() {
-      reverter.snapshot(done);
-    }).catch(done);
-   });
-   });
-   });
-   });
+  before('setup others', async () => {
+    stub = await Stub.new()
+    storageManager = await StorageManager.new()
+    chronoBankPlatform = await ChronoBankPlatformTestable.new()
+    await chronoBankPlatform.setupEventsHistory(stub.address)
+    await chronoBankPlatform.setManager(storageManager.address)
+    await storageManager.giveAccess(chronoBankPlatform.address, "ChronoBankPlatform")
+
+    await chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
+    await chronoBankPlatform.issueAsset(SYMBOL2, VALUE2, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
+
+    chronoBankAsset = await ChronoBankAsset.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
+
+    chronoBankAssetProxy = await ChronoBankAssetProxy.new()
+    await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
+    await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
+    await chronoBankAsset.init(chronoBankAssetProxy.address)
+
+    await reverter.promisifySnapshot()
   });
 
   it('should be possible to get total supply', function() {
