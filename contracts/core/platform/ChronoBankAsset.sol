@@ -71,11 +71,11 @@ contract ChronoBankAsset is ChronoBankAssetInterface, StorageAdapter {
     }
 
     constructor(Storage _platform, bytes32 _crate) StorageAdapter(_platform, _crate) public {
-        require(_crate != CHRONOBANK_PLATFORM_CRATE);
+        require(_crate != CHRONOBANK_PLATFORM_CRATE, "Asset crate should not have the same space as a platform");
 
         proxyStorage.init("proxy");
-        blacklistStorage.init("blacklistStorage");
-        pausedStorage.init("pausedStorage");
+        blacklistStorage.init("blacklist");
+        pausedStorage.init("paused");
     }
 
     /// @notice Sets asset proxy address.
