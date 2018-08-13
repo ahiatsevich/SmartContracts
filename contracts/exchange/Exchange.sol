@@ -13,7 +13,7 @@ import "../core/erc20/ERC20Manager.sol";
 import "../priceticker/PriceTicker.sol";
 
 contract ExchangeEmitter {
-    function emitError(uint errorCode) public returns (uint);
+    function emitError(uint errorCode) public;
     function emitFeeUpdated(address rewards, uint feePercent, address by) public;
     function emitPricesUpdated(uint buyPrice, uint sellPrice, bool usePriceTicker, address by) public;
     function emitActiveChanged(bool isActive, address by) public;
@@ -527,9 +527,8 @@ contract Exchange is Object {
 
     /* emit* methods are designed to be called only via EventsHistory */
 
-    function emitError(uint _errorCode) public returns (uint) {
+    function emitError(uint _errorCode) public {
         Error(msg.sender, _errorCode);
-        return _errorCode;
     }
 
     function emitFeeUpdated(address _rewards, uint _feePercent, address _by) public {
