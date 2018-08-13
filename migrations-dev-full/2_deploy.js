@@ -10,6 +10,7 @@ const SetStorageInterface_v_1_1 = artifacts.require("SetStorageInterface_v_1_1")
 const Storage = artifacts.require('Storage')
 const StorageInterface = artifacts.require('StorageInterface')
 const StorageManager = artifacts.require('StorageManager')
+const StorageManagerFactory = artifacts.require('StorageManagerFactory')
 const ContractsManager = artifacts.require("ContractsManager")
 const UserManager = artifacts.require("UserManager")
 const ERC20Manager = artifacts.require("ERC20Manager")
@@ -93,11 +94,17 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Storage Contracts: #done`)
 	})
 	.then(async () => {
+		/** 
+		 	NOTE:
+		 	Create a new storage manager specifically for Chronobank Platform.
+			It could be fetched from chronoBankPlatform.manager()
+		 */
+		const storageManager = await StorageManager.new()
 		await deployer.deploy(ChronoBankPlatform)
 		
 		const platform = await ChronoBankPlatform.deployed()
-		const storageManager = await StorageManager.deployed()
 		await platform.setManager(storageManager.address)
+		await storageManager.giveAccess(platform.address, "ChronoBankPlatform")
 		
 		const history = await MultiEventsHistory.deployed()
 		await history.authorize(platform.address)
@@ -127,8 +134,15 @@ module.exports = (deployer, network, accounts) => {
 	})
 	.then(async () => {
 		if (network !== 'main') {
-			await deployer.deploy(ChronoBankAsset)
+			const ASSET_CRATE = 'TIME'
+
+			const platform = await ChronoBankPlatform.deployed()
+			
+			await deployer.deploy(ChronoBankAsset, platform.address, ASSET_CRATE)
+			
 			const asset = await ChronoBankAsset.deployed()
+			const storageManager = StorageManager.at(await platform.manager())
+			await storageManager.giveAccess(asset.address, ASSET_CRATE)
 			await asset.init(ChronoBankAssetProxy.address)
 
 			console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAsset: #done`)
@@ -154,9 +168,15 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetWithFeeProxy: #done`)
 	})
 	.then(async () => {
-		await deployer.deploy(ChronoBankAssetWithFee)
+		const ASSET_WITH_FEE_CRATE = 'LHT'
 
+		const platform = await ChronoBankPlatform.deployed()
+		
+		await deployer.deploy(ChronoBankAssetWithFee, platform.address, ASSET_WITH_FEE_CRATE)
+		
 		const asset = await ChronoBankAssetWithFee.deployed()
+		const storageManager = StorageManager.at(await platform.manager())
+		await storageManager.giveAccess(asset.address, ASSET_WITH_FEE_CRATE)
 		await asset.init(ChronoBankAssetWithFeeProxy.address)
 
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetWithFee: #done`)
@@ -267,6 +287,21 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Assets Manager setup: #done`)
 	})
 	.then(async () => {
+		await deployer.deploy(StorageManagerFactory)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] StorageManager Factory deploy: #done`)
+	})
+	.then(async () => {
+		const SYSTEM_AUTHORITY_CONTRACT_KEYS = [
+			"PlatformsManager",
+			"AssetsManager",
+		]
+		const storageManagerFactory = await StorageManagerFactory.deployed()
+		await storageManagerFactory.setSystemAuthorityKeys(SYSTEM_AUTHORITY_CONTRACT_KEYS)
+	
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] StorageManager Factory setup: #done`)
+	})
+	.then(async () => {
 		await deployer.deploy(ChronoBankPlatformFactory)
 
 		const history = await MultiEventsHistory.deployed()
@@ -284,7 +319,7 @@ module.exports = (deployer, network, accounts) => {
 		await storageManager.giveAccess(PlatformsManager.address, "PlatformsManager")
 
 		const platformsManager = await PlatformsManager.deployed()
-		await platformsManager.init(ContractsManager.address, ChronoBankPlatformFactory.address)
+		await platformsManager.init(ContractsManager.address, ChronoBankPlatformFactory.address, StorageManagerFactory.address)
 
 		const history = await MultiEventsHistory.deployed()
 		await history.authorize(platformsManager.address)
@@ -292,8 +327,6 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Platforms Manager setup: #done`)
 	})
 	.then(async () => {
-		const TIME_SYMBOL = 'TIME'
-
 		if (network !== 'main') {
 			await deployer.deploy(AssetDonator)
 
@@ -315,11 +348,10 @@ module.exports = (deployer, network, accounts) => {
 			await deployer.deploy(Clock)
 			await deployer.deploy(AssetsManagerMock)
 
-			const storageManager = await StorageManager.deployed()
-			await storageManager.giveAccess(AssetsManagerMock.address, 'AssetsManager')
-
+			const storageManager = await StorageManager.new() // Create new StorageManager for testable platform to not intersect with original platform
 			const testablePlatform = await ChronoBankPlatformTestable.deployed()
 			await testablePlatform.setManager(storageManager.address)
+			await storageManager.giveAccess(ChronoBankPlatformTestable.address, 'ChronoBankPlatform')
 
 			await deployer.deploy(KrakenPriceTicker, true)
 
@@ -341,7 +373,7 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] LOC Wallet setup: #done`)
 	})
 	.then(async () => {
-// deploy FakeCoin only in non-main networks
+		// deploy FakeCoin only in non-main networks
 		if (network === 'main') {
 			console.log("[MIGRATION] [36] Deploy FakeCoin: #skiped, main network")
 		}
@@ -382,13 +414,11 @@ module.exports = (deployer, network, accounts) => {
 		
 		const TIME_SYMBOL = 'TIME'
 		const TIME_NAME = 'Time Token'
-		const TIME_DESCRIPTION = 'ChronoBank Time Shares'
 		const TIME_BASE_UNIT = 8
 
 		//----------
 		const LHT_SYMBOL = 'LHT'
 		const LHT_NAME = 'Labour-hour Token'
-		const LHT_DESCRIPTION = 'ChronoBank Lht Assets'
 		const LHT_BASE_UNIT = 8
 
 		const systemOwner = accounts[0]
@@ -400,7 +430,7 @@ module.exports = (deployer, network, accounts) => {
 			const chronoBankAssetProxy = await ChronoBankAssetProxy.deployed()
 			await chronoBankPlatform.setProxy(ChronoBankAssetProxy.address, TIME_SYMBOL)
 			await chronoBankAssetProxy.proposeUpgrade(ChronoBankAsset.address)
-			await erc20Manager.addToken(ChronoBankAssetProxy.address, TIME_NAME, TIME_SYMBOL, "", LHT_BASE_UNIT, "", "")
+			await erc20Manager.addToken(ChronoBankAssetProxy.address, TIME_NAME, TIME_SYMBOL, "", TIME_BASE_UNIT, "", "")
 		}
 
 		const chronoBankAssetWithFeeProxy = await ChronoBankAssetWithFeeProxy.deployed()
@@ -533,9 +563,6 @@ module.exports = (deployer, network, accounts) => {
 
         const tokenExtensionManager = await PlatformTokenExtensionGatewayManager.deployed()
         await tokenExtensionManager.init(ContractsManager.address)
-
-        const history = await MultiEventsHistory.deployed()
-        await history.authorize(PlatformTokenExtensionGatewayManager.address)
 
         console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Platform TokenExtension Gateway Manager setup: #done`)
 	})
