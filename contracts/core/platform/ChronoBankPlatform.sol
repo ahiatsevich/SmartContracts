@@ -61,7 +61,9 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @dev Asset's total supply
     StorageInterface.Bytes32UIntMapping assetTotalSupply;
     /// @dev Asset's name, for information purposes.
-    StorageInterface.Bytes32Bytes32Mapping assetName;
+    StorageInterface.StringMapping assetName;
+    /// @dev Asset's description, for information purposes.
+    StorageInterface.StringMapping assetDescription;
     /// @dev Indicates if asset have dynamic or fixed supply
     StorageInterface.Bytes32BoolMapping assetIsReissuable;
     /// @dev Proposed number of decimals
@@ -150,6 +152,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         assetOwner.init("assetOwner");
         assetTotalSupply.init("assetTotalSupply");
         assetName.init("assetName");
+        assetDescription.init("assetDescription");
         assetIsReissuable.init("assetIsReissuable");
         assetBaseUnit.init("assetBaseUnit");
         assetPartowners.init("assetPartowners");
@@ -164,7 +167,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     function assets(bytes32 _symbol) public view returns (
         uint _owner,
         uint _totalSupply,
-        bytes32 _name,
+        string _name,
         string _description,
         bool _isReissuable,
         uint8 _baseUnit
@@ -172,6 +175,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         _owner = store.get(assetOwner, _symbol);
         _totalSupply = store.get(assetTotalSupply, _symbol);
         _name = store.get(assetName, _symbol);
+        _description = store.get(assetDescription, _symbol);
         _isReissuable = store.get(assetIsReissuable, _symbol);
         _baseUnit = store.get(assetBaseUnit, _symbol);
     }
@@ -246,7 +250,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @notice Returns asset name.
     /// @param _symbol asset symbol.
     /// @return asset name.
-    function name(bytes32 _symbol) public view returns (bytes32) {
+    function name(bytes32 _symbol) public view returns (string) {
         return store.get(assetName, _symbol);
     }
 
@@ -254,7 +258,7 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     /// @param _symbol asset symbol.
     /// @return asset description.
     function description(bytes32 _symbol) public view returns (string) {
-        return "No description";
+        return store.get(assetDescription, _symbol);
     }
 
     /// @notice Returns asset reissuability.
@@ -369,8 +373,8 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     external
     returns (uint errorCode, uint count)
     {
-        require(addresses.length == values.length);
-        require(_symbol != 0x0);
+        require(addresses.length == values.length, "Different length of addresses and values for mass transfer");
+        require(_symbol != 0x0, "Asset's symbol cannot be 0");
 
         uint senderId = _createHolderId(msg.sender);
 
@@ -622,7 +626,8 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
         store.add(symbolsStorage, _symbol);
         store.set(assetOwner, _symbol, creatorId);
         store.set(assetTotalSupply, _symbol, _value);
-        store.set(assetName, _symbol, stringToBytes32(_name));
+        store.set(assetName, _symbol, _name);
+        store.set(assetDescription, _symbol, _description);
         store.set(assetIsReissuable, _symbol, _isReissuable);
         store.set(assetBaseUnit, _symbol, _baseUnit);
         store.set(assetWalletBalance, _symbol, holderId, _value);

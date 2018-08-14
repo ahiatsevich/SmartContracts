@@ -73,13 +73,13 @@ context("with one CBE key", function(){
       assert.equal(events.length, 0);
       return chronoBankPlatform.name.call(symbol);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(name));
+      assert.equal(result.valueOf(), name);
       return await chronoBankPlatform.totalSupply.call(symbol);
     }).then(function(result) {
       assert.equal(result.valueOf(), value);
-    //   return chronoBankPlatform.description.call(symbol);
-    // }).then(function(result) {
-    //   assert.equal(result.valueOf(), description);
+      return chronoBankPlatform.description.call(symbol);
+    }).then(function(result) {
+      assert.equal(result.valueOf(), description);
       return chronoBankPlatform.baseUnit.call(symbol);
     }).then(function(result) {
       assert.equal(result.valueOf(), baseUnit);
@@ -101,7 +101,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(symbol, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.name.call(symbol);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(NAME));
+      assert.equal(result.valueOf(), NAME);
     });
   });
   it('should be possible to issue asset with 1 bit 1 symbol', function() {
@@ -109,7 +109,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(symbol, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.name.call(symbol);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(NAME));
+      assert.equal(result.valueOf(), NAME);
     });
   });
   it('should be possible to issue asset with 32 bytes symbol', function() {
@@ -117,7 +117,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(symbol, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.name.call(symbol);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(NAME));
+      assert.equal(result.valueOf(), NAME);
     });
   });
   it('should not be possible to issue fixed asset with 0 value', function() {
@@ -126,7 +126,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(SYMBOL, value, NAME, DESCRIPTION, BASE_UNIT, isReissuable).then(function() {
       return chronoBankPlatform.name.call(SYMBOL);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(''));
+      assert.equal(result.valueOf(), '');
     });
   });
   it('should be possible to issue fixed asset with 1 value', function() {
@@ -153,7 +153,7 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(SYMBOL, value, NAME, DESCRIPTION, BASE_UNIT, isReissuable).then(function() {
       return chronoBankPlatform.name.call(SYMBOL);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(NAME));
+      assert.equal(result.valueOf(), NAME);
     });
   });
   it('should be possible to issue reissuable asset with 1 value', function() {
@@ -206,13 +206,13 @@ context("with one CBE key", function(){
       assert.equal(events[0].args.by.valueOf(), accounts[0]);
       return chronoBankPlatform.name.call(symbol);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(name));
+      assert.equal(result.valueOf(), name);
       return chronoBankPlatform.totalSupply.call(symbol);
     }).then(function(result) {
       assert.equal(result.valueOf(), value);
-    //   return chronoBankPlatform.description.call(symbol);
-    // }).then(function(result) {
-    //   assert.equal(result.valueOf(), description);
+      return chronoBankPlatform.description.call(symbol);
+    }).then(function(result) {
+      assert.equal(result.valueOf(), description);
       return chronoBankPlatform.baseUnit.call(symbol);
     }).then(function(result) {
       assert.equal(result.valueOf(), baseUnit);
@@ -240,22 +240,22 @@ context("with one CBE key", function(){
     }).then(function() {
       return chronoBankPlatform.name.call(symbol);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(name));
+      assert.equal(result.valueOf(), name);
       return chronoBankPlatform.name.call(symbol2);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(name2));
+      assert.equal(result.valueOf(), name2);
       return chronoBankPlatform.totalSupply.call(symbol);
     }).then(function(result) {
       assert.equal(result.valueOf(), value);
       return chronoBankPlatform.totalSupply.call(symbol2);
     }).then(function(result) {
       assert.equal(result.valueOf(), value2);
-    //   return chronoBankPlatform.description.call(symbol);
-    // }).then(function(result) {
-    //   assert.equal(result.valueOf(), description);
-    //   return chronoBankPlatform.description.call(symbol2);
-    // }).then(function(result) {
-    //   assert.equal(result.valueOf(), description2);
+      return chronoBankPlatform.description.call(symbol);
+    }).then(function(result) {
+      assert.equal(result.valueOf(), description);
+      return chronoBankPlatform.description.call(symbol2);
+    }).then(function(result) {
+      assert.equal(result.valueOf(), description2);
       return chronoBankPlatform.baseUnit.call(symbol);
     }).then(function(result) {
       assert.equal(result.valueOf(), baseUnit);
@@ -280,10 +280,10 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.name.call(SYMBOL);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(NAME));
+      assert.equal(result.valueOf(), NAME);
     });
   });
-  it.skip('should be possible to get asset description', function() {
+  it('should be possible to get asset description', function() {
     return chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.description.call(SYMBOL);
     }).then(function(result) {
@@ -436,10 +436,10 @@ context("with one CBE key", function(){
     return chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.name.call(nonAsset);
     }).then(async function(result) {
-      assert.equal(result.valueOf(), await helperContract.convertToBytes32.call(''));
+      assert.equal(result.valueOf(), '');
     });
   });
-  it.skip('should not be possible to get description of missing asset', function() {
+  it('should not be possible to get description of missing asset', function() {
     var nonAsset = 'LHNONEXIST';
     return chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE).then(function() {
       return chronoBankPlatform.description.call(nonAsset);
