@@ -4,7 +4,7 @@ const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
 const utils = require("./helpers/utils")
 
-const ChronoBankAsset = artifacts.require('ChronoBankAsset')
+const ChronoBankAssetBasic = artifacts.require('ChronoBankAssetBasic')
 const ChronoBankAssetProxy = artifacts.require('ChronoBankAssetProxy')
 const ChronoBankPlatform = artifacts.require('ChronoBankPlatform')
 const StorageManager = artifacts.require('StorageManager')
@@ -125,9 +125,10 @@ contract('Assets Manager', function(accounts) {
             await platform.issueAsset(symbol, 10000, symbol, "", 2, false, owner, { from: systemOwner, })
             await platform.changeOwnership(symbol, owner, { from: systemOwner, })
             await proxy.init(platform.address, symbol, symbol)
-            const asset = await ChronoBankAsset.new(platform.address, symbol, { from: owner, })
+             // basic
+            const asset = await ChronoBankAssetBasic.new(platform.address, symbol, { from: owner, })
             await storageManager.giveAccess(asset.address, symbol)
-            await asset.init(proxy.address, { from: owner, })
+            await asset.init(proxy.address, true, { from: owner, })
             await proxy.proposeUpgrade(asset.address, { from: owner, })
             await platform.setProxy(proxy.address, symbol, { from: systemOwner, });
         }

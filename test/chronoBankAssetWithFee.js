@@ -1,5 +1,7 @@
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
-var ChronoBankAssetWithFee = artifacts.require("./ChronoBankAssetWithFee.sol");
+const ChronoBankAssetBasicWithFee = artifacts.require("ChronoBankAssetBasicWithFee");
+const ChronoBankAssetPausable = artifacts.require("ChronoBankAssetPausable");
+const ChronoBankAssetBlacklistable = artifacts.require("ChronoBankAssetBlacklistable");
 var ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
 const StorageManager = artifacts.require("StorageManager");
 var Stub = artifacts.require("./Stub.sol");
@@ -23,6 +25,8 @@ contract('ChronoBankAssetWithFee', function(accounts) {
   var IS_REISSUABLE = true;
   var chronoBankPlatform;
   var chronoBankAsset;
+  let chronoBankAssetPausable
+  let chronoBankAssetBlacklistable
   var chronoBankAssetProxy;
   var stub;
 
@@ -36,14 +40,28 @@ contract('ChronoBankAssetWithFee', function(accounts) {
 
     await chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
     await chronoBankPlatform.issueAsset(SYMBOL2, VALUE2, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
-
-    chronoBankAsset = await ChronoBankAssetWithFee.new(chronoBankPlatform.address, SYMBOL)
-    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
-
+    
     chronoBankAssetProxy = await ChronoBankAssetProxy.new()
     await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
+
+    // pausable
+    chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
+    await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
+    
+    // blacklistable
+    chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
+    await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
+
+    // basic with fee
+    chronoBankAsset = await ChronoBankAssetBasicWithFee.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
+    await chronoBankAsset.init(chronoBankAssetProxy.address, false)
+
+    await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAsset.address, ])
+
     await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
-    await chronoBankAsset.init(chronoBankAssetProxy.address)
 
     await reverter.promisifySnapshot()
   });
@@ -1150,134 +1168,144 @@ contract('ChronoBankAssetWithFee', function(accounts) {
     });
   });
 
-  it('should take min fee on transfer', function() {
-    var holder = accounts[0];
-    var holder2 = accounts[1];
-    var feeAddress = accounts[2];
-    var amount = 1;
-    var feeMin = 1;
-    var feePercent = 1; // 0.01 * 100;
-    return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL).then(function() {
-      return chronoBankAsset.setupFee(feeAddress, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.transfer(holder2, amount);
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(holder);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), VALUE - amount - feeMin);
-      return chronoBankAssetProxy.balanceOf(holder2);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), amount);
-      return chronoBankAssetProxy.balanceOf(feeAddress);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), feeMin);
+  describe("fee", () => {
+    let asset
+
+    beforeEach(async () => {
+      asset = ChronoBankAssetBasicWithFee.at(await chronoBankAsset.getAssetByType("ChronoBankAssetBasicWithFee"))
+    })
+
+    it('should take min fee on transfer', function() {
+      var holder = accounts[0];
+      var holder2 = accounts[1];
+      var feeAddress = accounts[2];
+      var amount = 1;
+      var feeMin = 1;
+      var feePercent = 1; // 0.01 * 100;
+      return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL).then(function() {
+        return asset.setupFee(feeAddress, feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.transfer(holder2, amount);
+      }).then(function() {
+        return chronoBankAssetProxy.balanceOf(holder);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), VALUE - amount - feeMin);
+        return chronoBankAssetProxy.balanceOf(holder2);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), amount);
+        return chronoBankAssetProxy.balanceOf(feeAddress);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), feeMin);
+      });
     });
-  });
-  it('should take percent fee on transfer', function() {
-    var holder = accounts[0];
-    var holder2 = accounts[1];
-    var feeAddress = accounts[2];
-    var amount = 10000;
-    var feePercent = 10; // 0.10 * 100;
-    return chronoBankPlatform.reissueAsset(SYMBOL, amount).then(function() {
-      return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-    }).then(function() {
-      return chronoBankAsset.setupFee(feeAddress, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.transfer(holder2, amount);
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(holder);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), VALUE - feePercent);
-      return chronoBankAssetProxy.balanceOf(holder2);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), amount);
-      return chronoBankAssetProxy.balanceOf(feeAddress);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), feePercent);
+
+    it('should take percent fee on transfer', function() {
+      var holder = accounts[0];
+      var holder2 = accounts[1];
+      var feeAddress = accounts[2];
+      var amount = 10000;
+      var feePercent = 10; // 0.10 * 100;
+      return chronoBankPlatform.reissueAsset(SYMBOL, amount).then(function() {
+        return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+      }).then(function() {
+        return asset.setupFee(feeAddress, feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.transfer(holder2, amount);
+      }).then(function() {
+        return chronoBankAssetProxy.balanceOf(holder);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), VALUE - feePercent);
+        return chronoBankAssetProxy.balanceOf(holder2);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), amount);
+        return chronoBankAssetProxy.balanceOf(feeAddress);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), feePercent);
+      });
     });
-  });
-  it('should take percent fee on allowance transfer', function() {
-    var holder = accounts[0];
-    var spender = accounts[1];
-    var receiver = accounts[2];
-    var feeAddress = accounts[3];
-    var amount = 10000;
-    var feePercent = 10; // 0.10 * 100;
-    return chronoBankPlatform.reissueAsset(SYMBOL, amount).then(function() {
-      return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-    }).then(function() {
-      return chronoBankAsset.setupFee(feeAddress, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.approve(spender, amount + feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.transferFrom(holder, receiver, amount, {from: spender});
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(holder);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), VALUE - feePercent);
-      return chronoBankAssetProxy.balanceOf(receiver);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), amount);
-      return chronoBankAssetProxy.balanceOf(feeAddress);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), feePercent);
+
+    it('should take percent fee on allowance transfer', function() {
+      var holder = accounts[0];
+      var spender = accounts[1];
+      var receiver = accounts[2];
+      var feeAddress = accounts[3];
+      var amount = 10000;
+      var feePercent = 10; // 0.10 * 100;
+      return chronoBankPlatform.reissueAsset(SYMBOL, amount).then(function() {
+        return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+      }).then(function() {
+        return asset.setupFee(feeAddress, feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.approve(spender, amount + feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.transferFrom(holder, receiver, amount, {from: spender});
+      }).then(function() {
+        return chronoBankAssetProxy.balanceOf(holder);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), VALUE - feePercent);
+        return chronoBankAssetProxy.balanceOf(receiver);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), amount);
+        return chronoBankAssetProxy.balanceOf(feeAddress);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), feePercent);
+      });
     });
-  });
-  it('should return fee on failed transfer', function() {
-    var holder = accounts[0];
-    var holder2 = accounts[1];
-    var feeAddress = accounts[2];
-    var amount = VALUE;
-    var feePercent = 10; // 0.10 * 100;
-    return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL).then(function() {
-      return chronoBankAsset.setupFee(feeAddress, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.transfer(holder2, amount)
-        .then(assert.fail)
-        .catch(() => {});
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(holder);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), VALUE);
-      return chronoBankAssetProxy.balanceOf(holder2);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), 0);
-      return chronoBankAssetProxy.balanceOf(feeAddress);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), 0);
+    it('should return fee on failed transfer', function() {
+      var holder = accounts[0];
+      var holder2 = accounts[1];
+      var feeAddress = accounts[2];
+      var amount = VALUE;
+      var feePercent = 10; // 0.10 * 100;
+      return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL).then(function() {
+        return asset.setupFee(feeAddress, feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.transfer(holder2, amount)
+          .then(assert.fail)
+          .catch(() => {});
+      }).then(function() {
+        return chronoBankAssetProxy.balanceOf(holder);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), VALUE);
+        return chronoBankAssetProxy.balanceOf(holder2);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), 0);
+        return chronoBankAssetProxy.balanceOf(feeAddress);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), 0);
+      });
     });
-  });
-  it('should return fee on allowance transfer', function() {
-    var holder = accounts[0];
-    var spender = accounts[1];
-    var receiver = accounts[2];
-    var feeAddress = accounts[3];
-    var amount = 10000;
-    var feePercent = 10; // 0.10 * 100;
-    return chronoBankPlatform.reissueAsset(SYMBOL, amount).then(function() {
-      return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-    }).then(function() {
-      return chronoBankAsset.setupFee(feeAddress, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.approve(spender, feePercent);
-    }).then(function() {
-      return chronoBankAssetProxy.transferFrom(holder, receiver, amount, {from: spender})
-        .then(assert.fail)
-        .catch(() => {});
-    }).then(function() {
-      return chronoBankAssetProxy.balanceOf(holder);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), VALUE + amount);
-      return chronoBankAssetProxy.balanceOf(receiver);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), 0);
-      return chronoBankAssetProxy.balanceOf(feeAddress);
-    }).then(function(balance) {
-      assert.equal(balance.valueOf(), 0);
-      return chronoBankAssetProxy.allowance(holder, spender);
-    }).then(function(allowance) {
-      assert.equal(allowance.valueOf(), feePercent);
+    it('should return fee on allowance transfer', function() {
+      var holder = accounts[0];
+      var spender = accounts[1];
+      var receiver = accounts[2];
+      var feeAddress = accounts[3];
+      var amount = 10000;
+      var feePercent = 10; // 0.10 * 100;
+      return chronoBankPlatform.reissueAsset(SYMBOL, amount).then(function() {
+        return chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+      }).then(function() {
+        return asset.setupFee(feeAddress, feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.approve(spender, feePercent);
+      }).then(function() {
+        return chronoBankAssetProxy.transferFrom(holder, receiver, amount, {from: spender})
+          .then(assert.fail)
+          .catch(() => {});
+      }).then(function() {
+        return chronoBankAssetProxy.balanceOf(holder);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), VALUE + amount);
+        return chronoBankAssetProxy.balanceOf(receiver);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), 0);
+        return chronoBankAssetProxy.balanceOf(feeAddress);
+      }).then(function(balance) {
+        assert.equal(balance.valueOf(), 0);
+        return chronoBankAssetProxy.allowance(holder, spender);
+      }).then(function(allowance) {
+        assert.equal(allowance.valueOf(), feePercent);
+      });
     });
-  });
+  })
 });

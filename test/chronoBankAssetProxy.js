@@ -1,6 +1,8 @@
 const ChronoBankPlatformTestable = artifacts.require('./ChronoBankPlatformTestable.sol');
-const ChronoBankAsset = artifacts.require('./ChronoBankAsset.sol');
-const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol');
+const ChronoBankAssetBasic = artifacts.require("ChronoBankAssetBasic");
+const ChronoBankAssetBasicWithFee = artifacts.require("ChronoBankAssetBasicWithFee");
+const ChronoBankAssetPausable = artifacts.require("ChronoBankAssetPausable");
+const ChronoBankAssetBlacklistable = artifacts.require("ChronoBankAssetBlacklistable");
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol');
 const StorageManager = artifacts.require("StorageManager");
 const Stub = artifacts.require('./Stub.sol');
@@ -22,7 +24,6 @@ contract('ChronoBankAssetProxy', function(accounts) {
   let storageManager
   let chronoBankPlatform;
   let chronoBankAsset;
-  let chronoBankAssetWithFee;
   let chronoBankAssetProxy;
   let stub;
 
@@ -35,15 +36,30 @@ contract('ChronoBankAssetProxy', function(accounts) {
     await chronoBankPlatform.setManager(storageManager.address)
     await storageManager.giveAccess(chronoBankPlatform.address, "ChronoBankPlatform")
 
-    chronoBankAsset = await ChronoBankAsset.new(chronoBankPlatform.address, SYMBOL)
-    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
+    await chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
 
     chronoBankAssetProxy = await ChronoBankAssetProxy.new()
     await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
 
-    await chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
+    // pausable
+    chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
+    await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
+    
+    // blacklistable
+    chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
+    await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
+
+    // basic
+    chronoBankAsset = await ChronoBankAssetBasic.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
+    await chronoBankAsset.init(chronoBankAssetProxy.address, false)
+
+    await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAsset.address, ])
+
+    // setup token
     await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
-    await chronoBankAsset.init(chronoBankAssetProxy.address)
 
     await reverter.promisifySnapshot()
   });
@@ -64,10 +80,25 @@ contract('ChronoBankAssetProxy', function(accounts) {
     assert.equal((await chronoBankAssetProxy.balanceOf(sender)).toString(16), (VALUE - value1).toString(16))
     assert.equal((await chronoBankAssetProxy.balanceOf(receiver)).toString(16), value1.toString(16))
 
-    chronoBankAssetWithFee = await ChronoBankAssetWithFee.new(chronoBankPlatform.address, SYMBOL)
+    // pausable
+    const chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
+    await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
+    
+    // blacklistable
+    const chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
+    await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
+
+    // basic with fee
+    const chronoBankAssetWithFee = await ChronoBankAssetBasicWithFee.new(chronoBankPlatform.address, SYMBOL)
     await storageManager.giveAccess(chronoBankAssetWithFee.address, SYMBOL)
-    await chronoBankAssetWithFee.init(chronoBankAssetProxy.address)
-    await chronoBankAssetProxy.proposeUpgrade(chronoBankAssetWithFee.address)
+    await chronoBankAssetWithFee.init(chronoBankAssetProxy.address, false)
+
+    await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAssetWithFee.address, ])
+    
+    // setup token
+    await chronoBankAssetProxy.proposeUpgrade(chronoBankAssetPausable.address)
 
     await timemachine.jump(86400*3) // 3 days
 

@@ -1,5 +1,7 @@
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
-var ChronoBankAsset = artifacts.require("./ChronoBankAsset.sol");
+const ChronoBankAssetBasic = artifacts.require("ChronoBankAssetBasic");
+const ChronoBankAssetPausable = artifacts.require("ChronoBankAssetPausable");
+const ChronoBankAssetBlacklistable = artifacts.require("ChronoBankAssetBlacklistable");
 var ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
 const StorageManager = artifacts.require("StorageManager");
 var Stub = artifacts.require("./Stub.sol");
@@ -24,6 +26,8 @@ contract('ChronoBankAsset', function(accounts) {
   var chronoBankPlatform;
   var chronoBankAsset;
   var chronoBankAssetProxy;
+  let chronoBankAssetPausable
+  let chronoBankAssetBlacklistable
   var stub;
 
   before('setup others', async () => {
@@ -37,13 +41,28 @@ contract('ChronoBankAsset', function(accounts) {
     await chronoBankPlatform.issueAsset(SYMBOL, VALUE, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
     await chronoBankPlatform.issueAsset(SYMBOL2, VALUE2, NAME, DESCRIPTION, BASE_UNIT, IS_REISSUABLE)
 
-    chronoBankAsset = await ChronoBankAsset.new(chronoBankPlatform.address, SYMBOL)
-    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
-
     chronoBankAssetProxy = await ChronoBankAssetProxy.new()
     await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
-    await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
-    await chronoBankAsset.init(chronoBankAssetProxy.address)
+    
+    // pausable
+    chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
+    await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
+    
+    // blacklistable
+    chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
+    await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
+
+    // basic
+    chronoBankAsset = await ChronoBankAssetBasic.new(chronoBankPlatform.address, SYMBOL)
+    await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
+    await chronoBankAsset.init(chronoBankAssetProxy.address, false)
+
+    await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAsset.address, ])
+
+    // setup token
+    await chronoBankAssetProxy.proposeUpgrade(chronoBankAssetPausable.address)
 
     await reverter.promisifySnapshot()
   });
@@ -1150,250 +1169,263 @@ contract('ChronoBankAsset', function(accounts) {
     });
   });
 
-  it('should be possible to add/remove addresses in blacklist', async() => {
-    const holder1 = accounts[1];
-    const holder2 = accounts[2];
+  describe("stoppable", () => {
+    let asset
 
-    let success = await chronoBankAsset.restrict.call([holder1, holder2]);
-    assert.isTrue(success);
+    beforeEach(async () => {
+      asset = ChronoBankAssetPausable.at(await chronoBankAsset.getAssetByType("ChronoBankAssetPausable"))
+    })
 
-    await chronoBankAsset.restrict([holder1, holder2]);
-
-    assert.isTrue(await chronoBankAsset.blacklist.call(holder1));
-    assert.isTrue(await chronoBankAsset.blacklist.call(holder2));
-
-    await chronoBankAsset.unrestrict([holder1, holder2]);
-
-    assert.isFalse(await chronoBankAsset.blacklist.call(holder1));
-    assert.isFalse(await chronoBankAsset.blacklist.call(holder2));
-  });
-
-  it('should be possible to pause/resume contract', async() => {
-    await chronoBankPlatform.setupEventsHistory(chronoBankPlatform.address);
+    it('should be possible to pause/resume contract', async() => {
+      await chronoBankPlatform.setupEventsHistory(chronoBankPlatform.address);
+      
+      const holder = accounts[1];
+  
+      let code = await asset.pause.call();
+      assert.isTrue(code);
+  
+      let pauseTx = await asset.pause();
+      assert.isTrue(await asset.paused());
+  
+      let pauseEvent = await eventsHelper.extractEvents(pauseTx, "Paused")[0];
+      assert.isDefined(pauseEvent);
+      assert.equal(pauseEvent.args.symbol, bytes32(SYMBOL));
+  
+      let unpauseTx = await asset.unpause();
+      assert.isFalse(await asset.paused());
+  
+      let unpauseEvent = eventsHelper.extractEvents(unpauseTx, "Unpaused")[0];
+      assert.isDefined(unpauseEvent);
+      assert.equal(unpauseEvent.args.symbol, bytes32(SYMBOL));
+  
+      await asset.unpause();
+      assert.isFalse(await asset.paused());
+    });
+  
+    it('should be not be possible to transfer if stoped', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+  
+      const holder = accounts[1];
+      const balance = 100;
+  
+      await asset.pause();
+      assert.isTrue(await asset.paused());
+  
+      assert.isFalse(await chronoBankAssetProxy.transfer.call(holder, balance));
+  
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+  
+      result = await chronoBankAssetProxy.transfer(holder, balance);
+  
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+  
+      await asset.unpause();
+      assert.isFalse(await asset.paused());
+  
+      assert.isTrue(await chronoBankAssetProxy.transfer.call(holder, balance));
+    });
     
-    const holder = accounts[1];
-
-    let code = await chronoBankAsset.pause.call();
-    assert.isTrue(code);
-
-    let pauseTx = await chronoBankAsset.pause();
-    assert.isTrue(await chronoBankAsset.paused());
-
-    let pauseEvent = await eventsHelper.extractEvents(pauseTx, "Paused")[0];
-    assert.isDefined(pauseEvent);
-    assert.equal(pauseEvent.args.symbol, bytes32(SYMBOL));
-
-    let unpauseTx = await chronoBankAsset.unpause();
-    assert.isFalse(await chronoBankAsset.paused());
-
-    let unpauseEvent = eventsHelper.extractEvents(unpauseTx, "Unpaused")[0];
-    assert.isDefined(unpauseEvent);
-    assert.equal(unpauseEvent.args.symbol, bytes32(SYMBOL));
-
-    await chronoBankAsset.unpause();
-    assert.isFalse(await chronoBankAsset.paused());
-  });
-
-
-  it('should be not be possible to transfer if stoped', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-
-    const holder = accounts[1];
-    const balance = 100;
-
-    await chronoBankAsset.pause();
-    assert.isTrue(await chronoBankAsset.paused());
-
-    assert.isFalse(await chronoBankAssetProxy.transfer.call(holder, balance));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-
-    result = await chronoBankAssetProxy.transfer(holder, balance);
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-
-    await chronoBankAsset.unpause();
-    assert.isFalse(await chronoBankAsset.paused());
-
-    assert.isTrue(await chronoBankAssetProxy.transfer.call(holder, balance));
-  });
-
-  it('should be not be possible to transfer if target address in blacklist', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-    await chronoBankPlatform.setupEventsHistory(chronoBankPlatform.address);
-
-    const holder = accounts[1];
-    const balance = 100;
-
-
-    assert.isTrue(await chronoBankAssetProxy.balanceOf(accounts[0]) > balance);
-    assert.isTrue(await chronoBankAssetProxy.transfer.call(holder, balance));
-
-    let restrictTx = await chronoBankAsset.restrict([holder]);
-
-    let restrictEvent = eventsHelper.extractEvents(restrictTx, "Restricted")[0];
-    assert.isDefined(restrictEvent);
-    assert.equal(restrictEvent.args.symbol, bytes32(SYMBOL));
-    assert.equal(restrictEvent.args.restricted, holder);
-
-    assert.isFalse(await chronoBankAssetProxy.transfer.call(holder, balance));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-
-    await chronoBankAssetProxy.transfer(holder, balance);
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-
-    let unrestrictTx = await chronoBankAsset.unrestrict([holder]);
-    assert.isTrue(await chronoBankAssetProxy.transfer.call(holder, balance));
-
-    let unrestrictEvent = eventsHelper.extractEvents(unrestrictTx, "Unrestricted")[0];
-    assert.isDefined(unrestrictEvent);
-    assert.equal(unrestrictEvent.args.symbol, bytes32(SYMBOL));
-    assert.equal(unrestrictEvent.args.unrestricted, holder);
-  });
-
-  it('should be not be possible to transfer if sender address in blacklist', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-
-    const holder = accounts[0];
-    const holder2 = accounts[1];
-    const balance = 100;
-
-    await chronoBankAsset.restrict([holder]);
-    assert.isTrue(await chronoBankAsset.blacklist.call(holder));
-
-    assert.isFalse(await chronoBankAssetProxy.transfer.call(holder2, balance, {from: holder}));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    await chronoBankAssetProxy.transfer(holder2, balance, {from: holder});
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-    assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
-
-    await chronoBankAsset.unrestrict([holder]);
-    assert.isTrue(await chronoBankAssetProxy.transfer.call(holder2, balance, {from: holder}));
-  });
-
-
-  it('should be not be possible to make transferFrom if stoped', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-
-    const holder = accounts[0];
-    const holder2 = accounts[1];
-    const balance = 100;
-
-    await chronoBankAsset.pause();
-    assert.isTrue(await chronoBankAsset.paused());
-
-    await chronoBankAssetProxy.approve(holder2, balance);
-
-    assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance, {from: holder2}));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    await chronoBankAssetProxy.transferFrom(holder, holder2, balance);
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-    assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
-
-    await chronoBankAsset.unpause();
-    assert.isFalse(await chronoBankAsset.paused());
-
-    assert.isTrue(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance, {from: holder2}));
-  });
-
-  it('should be not be possible to make transferFrom if target address in blacklist', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-
-    const holder = accounts[0];
-    const holder2 = accounts[1];
-    const balance = 100;
-
-    await chronoBankAssetProxy.approve(holder2, balance);
-
-    await chronoBankAsset.restrict([holder2]);
-    assert.isTrue(await chronoBankAsset.blacklist.call(holder2));
-
-    assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    await chronoBankAssetProxy.transferFrom(holder, holder2, balance);
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-    assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
-
-    await chronoBankAsset.unrestrict([holder2]);
-    assert.isTrue(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance));
-  });
-
-  it('should be not be possible to make transfer from if sender address in blacklist', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-
-    const holder = accounts[1];
-    const holder2 = accounts[0];
-    const balance = 100;
-
-    await chronoBankAsset.restrict([holder]);
-    assert.isTrue(await chronoBankAsset.blacklist.call(holder));
-
-    await chronoBankAssetProxy.approve(holder2, balance);
-
-    assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance, {from: holder}));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    await chronoBankAssetProxy.transferFrom(holder, holder2, balance, {from: holder});
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-    assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
-  });
-
-  it('should be not be possible to make transfer from if sender address in blacklist', async() => {
-    await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
-
-    const holder = accounts[0];
-    const holder2 = accounts[1];
-    const holder3 = accounts[2];
-    const balance = 100;
-
-    await chronoBankAsset.restrict([holder3]);
-    assert.isTrue(await chronoBankAsset.blacklist.call(holder3));
-
-    await chronoBankAssetProxy.approve(holder2, balance);
-
-    assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder3, balance, {from: holder}));
-
-    let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-
-    await chronoBankAssetProxy.transferFrom(holder, holder3, balance, {from: holder});
-
-    let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
-    let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
-    assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
-    assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
-
-    await chronoBankAsset.unrestrict([holder3]);
-    assert.isTrue(await chronoBankAssetProxy.transferFrom.call(holder, holder3, balance, {from: holder}));
-  });
+    it('should be not be possible to make transferFrom if stoped', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+
+      const holder = accounts[0];
+      const holder2 = accounts[1];
+      const balance = 100;
+
+      await asset.pause();
+      assert.isTrue(await asset.paused());
+
+      await chronoBankAssetProxy.approve(holder2, balance);
+
+      assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance, {from: holder2}));
+
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+
+      await chronoBankAssetProxy.transferFrom(holder, holder2, balance);
+
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+      assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
+
+      await asset.unpause();
+      assert.isFalse(await asset.paused());
+
+      assert.isTrue(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance, {from: holder2}));
+    });
+  })
+
+  describe("blacklisted", () => {
+    let asset
+
+    beforeEach(async () => {
+      asset = ChronoBankAssetBlacklistable.at(await chronoBankAsset.getAssetByType("ChronoBankAssetBlacklistable"))
+    })
+
+    it('should be possible to add/remove addresses in blacklist', async() => {
+      const holder1 = accounts[1];
+      const holder2 = accounts[2];
+  
+      let success = await asset.restrict.call([holder1, holder2]);
+      assert.isTrue(success);
+  
+      await asset.restrict([holder1, holder2]);
+  
+      assert.isTrue(await asset.blacklist.call(holder1));
+      assert.isTrue(await asset.blacklist.call(holder2));
+  
+      await asset.unrestrict([holder1, holder2]);
+  
+      assert.isFalse(await asset.blacklist.call(holder1));
+      assert.isFalse(await asset.blacklist.call(holder2));
+    });
+
+    it('should be not be possible to transfer if target address in blacklist (1 account)', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+      await chronoBankPlatform.setupEventsHistory(chronoBankPlatform.address);
+  
+      const holder = accounts[1];
+      const balance = 100;  
+  
+      assert.isTrue(await chronoBankAssetProxy.balanceOf(accounts[0]) > balance);
+      assert.isTrue(await chronoBankAssetProxy.transfer.call(holder, balance));
+  
+      let restrictTx = await asset.restrict([holder]);
+  
+      let restrictEvent = eventsHelper.extractEvents(restrictTx, "Restricted")[0];
+      assert.isDefined(restrictEvent);
+      assert.equal(restrictEvent.args.symbol, bytes32(SYMBOL));
+      assert.equal(restrictEvent.args.restricted, holder);
+  
+      assert.isFalse(await chronoBankAssetProxy.transfer.call(holder, balance));
+  
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+  
+      await chronoBankAssetProxy.transfer(holder, balance);
+  
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+  
+      let unrestrictTx = await asset.unrestrict([holder]);
+      assert.isTrue(await chronoBankAssetProxy.transfer.call(holder, balance));
+  
+      let unrestrictEvent = eventsHelper.extractEvents(unrestrictTx, "Unrestricted")[0];
+      assert.isDefined(unrestrictEvent);
+      assert.equal(unrestrictEvent.args.symbol, bytes32(SYMBOL));
+      assert.equal(unrestrictEvent.args.unrestricted, holder);
+    });
+  
+    it('should be not be possible to transfer if sender address in blacklist (2 accounts)', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+  
+      const holder = accounts[0];
+      const holder2 = accounts[1];
+      const balance = 100;
+  
+      await asset.restrict([holder]);
+      assert.isTrue(await asset.blacklist.call(holder));
+  
+      assert.isFalse(await chronoBankAssetProxy.transfer.call(holder2, balance, {from: holder}));
+  
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+  
+      await chronoBankAssetProxy.transfer(holder2, balance, {from: holder});
+  
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+  
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+      assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
+  
+      await asset.unrestrict([holder]);
+      assert.isTrue(await chronoBankAssetProxy.transfer.call(holder2, balance, {from: holder}));
+    });
+
+    it('should be not be possible to make transferFrom if target address in blacklist', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+  
+      const holder = accounts[0];
+      const holder2 = accounts[1];
+      const balance = 100;
+      
+      await chronoBankAssetProxy.approve(holder2, balance);
+  
+      await asset.restrict([holder2]);
+      assert.isTrue(await asset.blacklist.call(holder2));
+  
+      assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance));
+  
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+  
+      await chronoBankAssetProxy.transferFrom(holder, holder2, balance);
+  
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+  
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+      assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
+  
+      await asset.unrestrict([holder2]);
+      assert.isTrue(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance));
+    });
+  
+    it('should be not be possible to make transfer from if sender address in blacklist (2 accounts)', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+  
+      const holder = accounts[1];
+      const holder2 = accounts[0];
+      const balance = 100;
+  
+      await asset.restrict([holder]);
+      assert.isTrue(await asset.blacklist.call(holder));
+  
+      await chronoBankAssetProxy.approve(holder2, balance);
+  
+      assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder2, balance, {from: holder}));
+  
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+  
+      await chronoBankAssetProxy.transferFrom(holder, holder2, balance, {from: holder});
+  
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+      assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
+    });
+  
+    it('should be not be possible to make transfer from if sender address in blacklist (3 accounts)', async() => {
+      await chronoBankPlatform.setProxy(chronoBankAssetProxy.address, SYMBOL);
+  
+      const holder = accounts[0];
+      const holder2 = accounts[1];
+      const holder3 = accounts[2];
+      const balance = 100;
+  
+      await asset.restrict([holder3]);
+      assert.isTrue(await asset.blacklist.call(holder3));
+  
+      await chronoBankAssetProxy.approve(holder2, balance);
+  
+      assert.isFalse(await chronoBankAssetProxy.transferFrom.call(holder, holder3, balance, {from: holder}));
+  
+      let expectedBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let expectedBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+  
+      await chronoBankAssetProxy.transferFrom(holder, holder3, balance, {from: holder});
+  
+      let actualBalance = await chronoBankAssetProxy.balanceOf(holder);
+      let actualBalance2 = await chronoBankAssetProxy.balanceOf(holder2);
+      assert.equal(expectedBalance.valueOf(), actualBalance.valueOf());
+      assert.equal(expectedBalance2.valueOf(), actualBalance2.valueOf());
+  
+      await asset.unrestrict([holder3]);
+      assert.isTrue(await chronoBankAssetProxy.transferFrom.call(holder, holder3, balance, {from: holder}));
+    });
+  })
 });

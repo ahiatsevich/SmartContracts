@@ -3,8 +3,8 @@ const FakeCoin2 = artifacts.require("./FakeCoin2.sol")
 const ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
 const StorageManager = artifacts.require("StorageManager");
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
-const ChronoBankAssetWithFee = artifacts.require("./ChronoBankAssetWithFee.sol");
-const ChronoBankAsset = artifacts.require("./ChronoBankAsset.sol");
+const ChronoBankAssetBasicWithFee = artifacts.require("ChronoBankAssetBasicWithFee");
+const ChronoBankAssetBasic = artifacts.require("ChronoBankAssetBasic");
 const Stub = artifacts.require("./Stub.sol");
 const Setup = require('../setup/setup')
 const Reverter = require('./helpers/reverter')
@@ -58,6 +58,8 @@ contract('ERC20 Manager', function(accounts) {
     let initialNumberOfTokens = 2
 
     before('setup', async () => {
+        await Setup.setupPromise()
+        
         coin = await FakeCoin.deployed()
         coin2 = await FakeCoin2.deployed()
         stub = await Stub.new()
@@ -67,21 +69,27 @@ contract('ERC20 Manager', function(accounts) {
         await chronoBankPlatform.setManager(storageManager.address)
         await storageManager.giveAccess(chronoBankPlatform.address, "ChronoBankPlatform")
 
-        chronoBankAsset = await ChronoBankAsset.new(chronoBankPlatform.address, TOKEN_SYMBOL)
-        await storageManager.giveAccess(chronoBankAsset.address, TOKEN_SYMBOL)
-        
+        // SYMBOL 1
         chronoBankAssetProxy = await ChronoBankAssetProxy.new()
         await chronoBankAssetProxy.init(chronoBankPlatform.address, TOKEN_SYMBOL, TOKEN_SYMBOL)
-        await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
-        await chronoBankAsset.init(chronoBankAssetProxy.address)
-        
-        chronoBankAssetWithFee = await ChronoBankAssetWithFee.new(chronoBankPlatform.address, TOKEN_2_SYMBOL)
-        await storageManager.giveAccess(chronoBankAssetWithFee.address, TOKEN_2_SYMBOL)
 
+        // basic
+        chronoBankAsset = await ChronoBankAssetBasic.new(chronoBankPlatform.address, TOKEN_SYMBOL)
+        await storageManager.giveAccess(chronoBankAsset.address, TOKEN_SYMBOL)
+        await chronoBankAsset.init(chronoBankAssetProxy.address, true)
+        
+        await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
+
+        // SYMBOL 2
         chronoBankAssetWithFeeProxy = await ChronoBankAssetProxy.new()
         await chronoBankAssetWithFeeProxy.init(chronoBankPlatform.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL)
+
+        // basic with fee
+        chronoBankAssetWithFee = await ChronoBankAssetBasicWithFee.new(chronoBankPlatform.address, TOKEN_2_SYMBOL)
+        await storageManager.giveAccess(chronoBankAssetWithFee.address, TOKEN_2_SYMBOL)
+        await chronoBankAssetWithFee.init(chronoBankAssetWithFeeProxy.address, true)
+
         await chronoBankAssetWithFeeProxy.proposeUpgrade(chronoBankAssetWithFee.address)
-        await chronoBankAssetWithFee.init(chronoBankAssetWithFeeProxy.address)
 
         await reverter.promisifySnapshot()
     })
