@@ -3,7 +3,7 @@
  * Licensed under the AGPL Version 3 license.
  */
 
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.24;
 
 
 import "../common/Object.sol";
@@ -24,6 +24,7 @@ contract Storage is Owned {
         mapping(bytes32 => uint8) uint8s;
         mapping(bytes32 => bytes32) bytes32s;
         mapping(bytes32 => AddressUInt8) addressUInt8s;
+        mapping(bytes32 => string) strings;
     }
 
     struct AddressUInt8 {
@@ -100,5 +101,13 @@ contract Storage is Owned {
 
     function getAddressUInt8(bytes32 _crate, bytes32 _key) public view returns (address, uint8) {
         return (crates[_crate].addressUInt8s[_key]._address, crates[_crate].addressUInt8s[_key]._uint8);
+    }
+
+    function setString(bytes32 _crate, bytes32 _key, string _value) external {
+        crates[_crate].strings[_key] = _value;
+    }
+
+    function getString(bytes32 _crate, bytes32 _key) public view returns (string) {
+        return crates[_crate].strings[_key];
     }
 }

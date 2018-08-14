@@ -39,8 +39,16 @@ library StorageInterface {
         bytes32 id;
     }
 
+    struct String {
+        bytes32 id;
+    }
+
     struct Mapping {
         bytes32 id;
+    }
+
+    struct StringMapping {
+        String id;
     }
 
     struct UIntBoolMapping {
@@ -167,8 +175,6 @@ library StorageInterface {
         Mapping innerMapping;
     }
 
-
-
     struct AddressUIntUIntUIntMapping {
         Mapping innerMapping;
     }
@@ -274,7 +280,7 @@ library StorageInterface {
     // Can't use modifier due to a Solidity bug.
     function sanityCheck(bytes32 _currentId, bytes32 _newId) internal pure {
         if (_currentId != 0 || _newId == 0) {
-            revert();
+            revert("StorageInterface: cannot pass sanity check");
         }
     }
 
@@ -313,9 +319,18 @@ library StorageInterface {
         self.id = _id;
     }
 
+    function init(String storage self, bytes32 _id) internal {
+        sanityCheck(self.id, _id);
+        self.id = _id;
+    }
+
     function init(Mapping storage self, bytes32 _id) internal {
         sanityCheck(self.id, _id);
         self.id = _id;
+    }
+
+    function init(StringMapping storage self, bytes32 _id) internal {
+        init(self.id, _id);
     }
 
     function init(UIntAddressMapping storage self, bytes32 _id) internal {
@@ -591,12 +606,24 @@ library StorageInterface {
         self.store.setBytes32(self.crate, keccak256(item.id, _salt), _value);
     }
 
+    function set(Config storage self, String storage item, string _value) internal {
+        self.store.setString(self.crate, item.id, _value);
+    }
+
+    function set(Config storage self, String storage item, bytes32 _salt, string _value) internal {
+        self.store.setString(self.crate, keccak256(item.id, _salt), _value);
+    }
+
     function set(Config storage self, Mapping storage item, uint _key, uint _value) internal {
         self.store.setUInt(self.crate, keccak256(item.id, _key), _value);
     }
 
     function set(Config storage self, Mapping storage item, bytes32 _key, bytes32 _value) internal {
         self.store.setBytes32(self.crate, keccak256(item.id, _key), _value);
+    }
+
+    function set(Config storage self, StringMapping storage item, bytes32 _key, string _value) internal {
+        set(self, item.id, _key, _value);
     }
 
     function set(Config storage self, AddressUInt8Mapping storage item, bytes32 _key, address _value1, uint8 _value2) internal {
@@ -1013,12 +1040,24 @@ library StorageInterface {
         return self.store.getBytes32(self.crate, keccak256(item.id, salt));
     }
 
+    function get(Config storage self, String storage item) internal view returns (string) {
+        return self.store.getString(self.crate, item.id);
+    }
+
+    function get(Config storage self, String storage item, bytes32 salt) internal view returns (string) {
+        return self.store.getString(self.crate, keccak256(item.id, salt));
+    }
+
     function get(Config storage self, Mapping storage item, uint _key) internal view returns (uint) {
         return self.store.getUInt(self.crate, keccak256(item.id, _key));
     }
 
     function get(Config storage self, Mapping storage item, bytes32 _key) internal view returns (bytes32) {
         return self.store.getBytes32(self.crate, keccak256(item.id, _key));
+    }
+
+    function get(Config storage self, StringMapping storage item, bytes32 _key) internal view returns (string) {
+        return get(self, item.id, _key);
     }
 
     function get(Config storage self, AddressUInt8Mapping storage item, bytes32 _key) internal view returns (address, uint8) {
