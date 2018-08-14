@@ -56,5 +56,5 @@ networks: {
       runs: 200
     }
   },
-  migrations_directory: './migrations'
+  migrations_directory: './migrations-dev-full'
 }
