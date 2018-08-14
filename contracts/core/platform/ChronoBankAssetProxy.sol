@@ -9,6 +9,7 @@ pragma solidity ^0.4.21;
 import {ChronoBankPlatformInterface as ChronoBankPlatform} from "./ChronoBankPlatformInterface.sol";
 import {ChronoBankAssetInterface as ChronoBankAsset} from "./ChronoBankAssetInterface.sol";
 import {ERC20Interface as ERC20} from "../erc20/ERC20Interface.sol";
+import "./assets/ChronoBankAssetUtils.sol";
 
 
 /// @title ChronoBank Asset Proxy.
@@ -266,7 +267,10 @@ contract ChronoBankAssetProxy is ERC20 {
 
     /// @dev Only asset implementation contract assigned to sender is allowed to call.
     modifier onlyAccess(address _sender) {
-        if (getVersionFor(_sender) == msg.sender) {
+        address _versionFor = getVersionFor(_sender);
+        if (msg.sender == _versionFor ||
+            ChronoBankAssetUtils.containsAssetInChain(ChronoBankAssetChainable(_versionFor), msg.sender)
+        ) {
             _;
         }
     }
