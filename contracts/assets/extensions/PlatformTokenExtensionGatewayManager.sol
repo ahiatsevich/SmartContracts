@@ -118,7 +118,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     onlyContractOwner
     returns (uint) 
     {
-        require(_contractsManager != 0x0);
+        require(_contractsManager != 0x0, "TOKEN_EXTENSION_INVALID_CONTRACTSMANAGER_ADDRESS");
 
         bool reinitialized = (contractsManager != 0x0);
         if (contractsManager == 0x0 || contractsManager != _contractsManager) {
@@ -137,7 +137,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     onlyContractOwner 
     {
         ContractsManagerInterface(contractsManager).removeContract(this);
-        suicide(msg.sender);
+        selfdestruct(msg.sender);
     }
 
     /// @notice Prepares ownership pass.
@@ -250,7 +250,16 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     onlyPlatformOwner
     returns (uint resultCode)
     {
-        return _createAssetWithoutFee(_symbol, _name, _description, _value, _decimals, _isMint, _tokenImageIpfsHash, [uint(0)]);
+        return _createAssetWithoutFee(
+            _symbol, 
+            _name, 
+            _description, 
+            _value, 
+            _decimals, 
+            _isMint, 
+            _tokenImageIpfsHash, 
+            [uint(0)]
+        );
     }
 
     function _createAssetWithoutFee(
@@ -310,7 +319,18 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     public
     onlyPlatformOwner
     returns (uint resultCode) {
-        return _createAssetWithFee(_symbol, _name, _description, _value, _decimals, _isMint, _feeAddress, _feePercent, _tokenImageIpfsHash, [uint(0)]);
+        return _createAssetWithFee(
+            _symbol, 
+            _name, 
+            _description, 
+            _value, 
+            _decimals, 
+            _isMint, 
+            _feeAddress, 
+            _feePercent, 
+            _tokenImageIpfsHash, 
+            [uint(0)]
+        );
     }
 
     function _createAssetWithFee(
@@ -329,14 +349,20 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     featured(_result)
     returns (uint resultCode)
     {
-        require(_feeAddress != 0x0);
+        require(_feeAddress != 0x0, "TOKEN_EXTENSION_INVALID_FEE_ADDRESS");
 
         resultCode = _prepareAndIssueAssetOnPlatform(_symbol, _name, _description, _value, _decimals, _isMint);
         if (resultCode != OK) {
             return _emitError(resultCode);
         }
 
-        address _token = _bindAssetWithToken(_deployAssetWithFee(_symbol, _feeAddress, _feePercent), _symbol, _name, _decimals, _tokenImageIpfsHash);
+        address _token = _bindAssetWithToken(
+            _deployAssetWithFee(_symbol, _feeAddress, _feePercent), 
+            _symbol, 
+            _name, 
+            _decimals, 
+            _tokenImageIpfsHash
+            );
 
         _emitAssetCreated(platform, _symbol, _token, msg.sender);
 
@@ -364,8 +390,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     featured(_result)
     returns (uint)
     {
-        require(_symbol != 0x0);
-        require(_crowdsaleFactoryName != 0x0);
+        require(_symbol != 0x0, "TOKEN_EXTENSION_INVALID_SYMBOL");
+        require(_crowdsaleFactoryName != 0x0, "TOKEN_EXTENSION_INVALID_FACTORY_NAME");
 
         ChronoBankAssetOwnershipManager _assetOwnershipManager = ChronoBankAssetOwnershipManager(getAssetOwnershipManager());
         CrowdsaleManager crowdsaleManager = CrowdsaleManager(lookupManager("CrowdsaleManager"));
@@ -375,7 +401,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(result);
         }
 
-        if( OK != _assetOwnershipManager.addAssetPartOwner(_symbol, _crowdsale)) revert();
+        if (OK != _assetOwnershipManager.addAssetPartOwner(_symbol, _crowdsale)) revert("TOKEN_EXTENSION_CANNOT_ADD_PARTOWNER_TO_ASSET");
 
         _emitCrowdsaleCampaignCreated(platform, _symbol, _crowdsale, msg.sender);
 
@@ -401,14 +427,14 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(result);
         }
 
-        if (OK != _assetOwnershipManager.removeAssetPartOwner(_symbol, _crowdsale)) revert();
+        if (OK != _assetOwnershipManager.removeAssetPartOwner(_symbol, _crowdsale)) revert("TOKEN_EXTENSION_CANNOT_REMOVE_PARTOWNER_FROM_ASSET");
 
         _emitCrowdsaleCampaignRemoved(platform, _symbol, _crowdsale, msg.sender);
         return OK;
     }
 
     function () public payable {
-        revert();
+        revert("TOKEN_EXTENSION_FALLBACK_IS_INACTIVE");
     }
 
     /* INTERNAL */
@@ -446,17 +472,18 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     {
         token = getTokenFactory().createProxy();
         
+        if (OK != ChronoBankPlatformInterface(platform).setProxy(token, _symbol)) revert("TOKEN_EXTENSION_CANNOT_SET_PROXY_TO_PLATFORM");
 
         if (OK != ChronoBankPlatformInterface(platform).setProxy(token, _symbol)) revert();
 
         ChronoBankAssetOwnershipManager _assetOwnershipManager = ChronoBankAssetOwnershipManager(getAssetOwnershipManager());
         ChronoBankAssetProxyInterface(token).init(platform, StringsLib.bytes32ToString(_symbol), _name);
         ChronoBankAssetProxyInterface(token).proposeUpgrade(_asset);
-        ChronoBankAsset(_asset).init(ChronoBankAssetProxyInterface(token));
-        if (OK != _assetOwnershipManager.addAssetPartOwner(_symbol, this)) revert();
+        if (OK != _assetOwnershipManager.addAssetPartOwner(_symbol, this)) revert("TOKEN_EXTENSION_CANNOT_ADD_PARTOWNER_TO_ASSET");
+
         _assetOwnershipManager.changeOwnership(_symbol, msg.sender);
 
-        if(OK != _addToken(token, _symbol, _decimals, _ipfsHash)) revert();
+        if(OK != _addToken(token, _symbol, _decimals, _ipfsHash)) revert("TOKEN_EXTENSION_CANNOT_ADD_TOKEN_TO_ERC20MANAGER");
     }
 
     /// @dev Creates asset with fee and setup according values. PRIVATE

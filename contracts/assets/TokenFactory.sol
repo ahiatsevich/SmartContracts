@@ -36,7 +36,7 @@ contract TokenFactory is Owned {
 
     /// @notice Add asset factory with given type to registry
     function setAssetFactory(bytes32 _type, address _factory) public onlyContractOwner returns (bool) {
-        require(_type != 0x0);
+        require(_type != 0x0, "TOKEN_FACTORY_INVALID_FACTORY_TYPE");
         factories[_type] = _factory;
     }
 
@@ -47,14 +47,14 @@ contract TokenFactory is Owned {
 
     /// @notice Creates asset contract
     function createAsset(bytes32 _type, address _storage, bytes32 _crate) public returns (address) {
-        require(factories[_type] != 0x0);
+        require(factories[_type] != 0x0, "TOKEN_FACTORY_PROVIDED_TYPE_NOT_FOUND");
         return AssetFactoryInterface(factories[_type]).createAsset(_storage, _crate);
     }
 
     /// @notice Creates owned asset contract
     function createOwnedAsset(bytes32 _type, address _owner, address _storage, bytes32 _crate) public returns (address) {
-        require(factories[_type] != 0x0);
-        require(_owner != 0x0);
+        require(factories[_type] != 0x0, "TOKEN_FACTORY_PROVIDED_TYPE_NOT_FOUND");
+        require(_owner != 0x0, "TOKEN_FACTORY_INVALID_OWNER_ADDRESS");
         return OwnedAssetFactoryInterface(factories[_type]).createOwnedAsset(_owner, _storage, _crate);
     }
 }

@@ -29,6 +29,6 @@ contract TokenExtensionRouter is BaseRouter, PlatformTokenExtensionGatewayManage
 
     function backend() internal constant returns (address _backend) {
         _backend = ContractsManagerInterface(contractsManager).getContractAddressByType("TokenExtensionGateway");
-        require(_backend != 0x0);
+        require(_backend != 0x0, "TOKEN_EXTENSION_FAILED_TO_FETCH_BACKEND");
     }
 }
