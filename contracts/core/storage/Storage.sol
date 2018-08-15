@@ -37,77 +37,137 @@ contract Storage is Owned {
 
     modifier onlyAllowed(bytes32 _role) {
         if (msg.sender != address(this) && !manager.isAllowed(msg.sender, _role)) {
-            revert("Cannot access to Storage's `role` by provided account");
+            revert("STORAGE_FAILED_TO_ACCESS_PROTECTED_FUNCTION");
         }
         _;
     }
 
-    function setManager(Manager _manager) onlyContractOwner external returns (bool) {
+    function setManager(Manager _manager) 
+    external 
+    onlyContractOwner 
+    returns (bool) 
+    {
         manager = _manager;
         return true;
     }
 
-    function setUInt(bytes32 _crate, bytes32 _key, uint _value) onlyAllowed(_crate) external {
+    function setUInt(bytes32 _crate, bytes32 _key, uint _value) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].uints[_key] = _value;
     }
 
-    function getUInt(bytes32 _crate, bytes32 _key) public view returns (uint) {
+    function getUInt(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (uint) 
+    {
         return crates[_crate].uints[_key];
     }
 
-    function setAddress(bytes32 _crate, bytes32 _key, address _value) onlyAllowed(_crate) external {
+    function setAddress(bytes32 _crate, bytes32 _key, address _value) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].addresses[_key] = _value;
     }
 
-    function getAddress(bytes32 _crate, bytes32 _key) public view returns (address) {
+    function getAddress(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (address) 
+    {
         return crates[_crate].addresses[_key];
     }
 
-    function setBool(bytes32 _crate, bytes32 _key, bool _value) onlyAllowed(_crate) external {
+    function setBool(bytes32 _crate, bytes32 _key, bool _value) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].bools[_key] = _value;
     }
 
-    function getBool(bytes32 _crate, bytes32 _key) public view returns (bool) {
+    function getBool(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (bool) 
+    {
         return crates[_crate].bools[_key];
     }
 
-    function setInt(bytes32 _crate, bytes32 _key, int _value) onlyAllowed(_crate) external {
+    function setInt(bytes32 _crate, bytes32 _key, int _value) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].ints[_key] = _value;
     }
 
-    function getInt(bytes32 _crate, bytes32 _key) public view returns (int) {
+    function getInt(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (int) 
+    {
         return crates[_crate].ints[_key];
     }
 
-    function setUInt8(bytes32 _crate, bytes32 _key, uint8 _value) onlyAllowed(_crate) external {
+    function setUInt8(bytes32 _crate, bytes32 _key, uint8 _value) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].uint8s[_key] = _value;
     }
 
-    function getUInt8(bytes32 _crate, bytes32 _key) public view returns (uint8) {
+    function getUInt8(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (uint8) 
+    {
         return crates[_crate].uint8s[_key];
     }
 
-    function setBytes32(bytes32 _crate, bytes32 _key, bytes32 _value) onlyAllowed(_crate) external {
+    function setBytes32(bytes32 _crate, bytes32 _key, bytes32 _value) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].bytes32s[_key] = _value;
     }
 
-    function getBytes32(bytes32 _crate, bytes32 _key) public view returns (bytes32) {
+    function getBytes32(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (bytes32) 
+    {
         return crates[_crate].bytes32s[_key];
     }
 
-    function setAddressUInt8(bytes32 _crate, bytes32 _key, address _value, uint8 _value2) onlyAllowed(_crate) external {
+    function setAddressUInt8(bytes32 _crate, bytes32 _key, address _value, uint8 _value2) 
+    external 
+    onlyAllowed(_crate) 
+    {
         crates[_crate].addressUInt8s[_key] = AddressUInt8(_value, _value2);
     }
 
-    function getAddressUInt8(bytes32 _crate, bytes32 _key) public view returns (address, uint8) {
+    function getAddressUInt8(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (address, uint8) 
+    {
         return (crates[_crate].addressUInt8s[_key]._address, crates[_crate].addressUInt8s[_key]._uint8);
     }
 
-    function setString(bytes32 _crate, bytes32 _key, string _value) external {
+    function setString(bytes32 _crate, bytes32 _key, string _value) 
+    external 
+    onlyAllowed(_crate)
+    {
         crates[_crate].strings[_key] = _value;
     }
 
-    function getString(bytes32 _crate, bytes32 _key) public view returns (string) {
+    function getString(bytes32 _crate, bytes32 _key) 
+    public 
+    view 
+    returns (string) 
+    {
         return crates[_crate].strings[_key];
     }
 }
