@@ -96,7 +96,7 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
     view
     returns (bytes32[] _types, address[] _assets) 
     {
-        return ChronoBankAssetUtils.getChainedAssets(ChronoBankAssetChainable(this));
+        return ChronoBankAssetUtils.getChainedAssets(ChronoBankAssetChainableInterface(this));
     }
 
     function getAssetByType(bytes32 _assetType)
@@ -104,7 +104,7 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
     view
     returns (address)
     {
-        return ChronoBankAssetUtils.getAssetByType(ChronoBankAssetChainable(this), _assetType);
+        return ChronoBankAssetUtils.getAssetByType(ChronoBankAssetChainableInterface(this), _assetType);
     }
 
     /// @notice Gets eventsHistory contract used for events' triggering

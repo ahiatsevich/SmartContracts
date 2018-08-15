@@ -269,7 +269,7 @@ contract ChronoBankAssetProxy is ERC20 {
     modifier onlyAccess(address _sender) {
         address _versionFor = getVersionFor(_sender);
         if (msg.sender == _versionFor ||
-            ChronoBankAssetUtils.containsAssetInChain(ChronoBankAssetChainable(_versionFor), msg.sender)
+            ChronoBankAssetUtils.containsAssetInChain(ChronoBankAssetChainableInterface(_versionFor), msg.sender)
         ) {
             _;
         }
