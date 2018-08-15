@@ -47,17 +47,21 @@ contract('ChronoBankAssetWithFee', function(accounts) {
     // pausable
     chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
     await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
-    await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
+    /* NOTE: Don't have to do `init` because it is enough to initialize head of assets' chain */
+    // await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
     
     // blacklistable
     chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
     await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
-    await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
+    /* NOTE: Don't have to do `init` because it is enough to initialize head of assets' chain */
+    // await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
 
     // basic with fee
     chronoBankAsset = await ChronoBankAssetBasicWithFee.new(chronoBankPlatform.address, SYMBOL)
     await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
-    await chronoBankAsset.init(chronoBankAssetProxy.address, false)
+
+    /* NOTE: Only single init needed to fully initialize chain of assets */
+    await chronoBankAsset.init(chronoBankAssetProxy.address, true)
 
     await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAsset.address, ])
 
