@@ -5,17 +5,15 @@
 
 pragma solidity ^0.4.24;
 
-interface ChronoBankAssetChainable {
-    function previousAsset() external view returns (ChronoBankAssetChainable);
-    function nextAsset() external view returns (ChronoBankAssetChainable);
-    function assetType() external pure returns (bytes32);
-}
+
+import "./libs/ChronoBankAssetChainableInterface.sol";
+
 
 library ChronoBankAssetUtils {
 
     uint constant ASSETS_CHAIN_MAX_LENGTH = 20;
 
-    function getChainedAssets(ChronoBankAssetChainable _asset) 
+    function getChainedAssets(ChronoBankAssetChainableInterface _asset) 
     public
     view
     returns (bytes32[] _types, address[] _assets) 
@@ -23,14 +21,14 @@ library ChronoBankAssetUtils {
         bytes32[] memory _tempTypes = new bytes32[](ASSETS_CHAIN_MAX_LENGTH);
         address[] memory _tempAssets = new address[](ASSETS_CHAIN_MAX_LENGTH);
 
-        ChronoBankAssetChainable _next = getHeadAsset(_asset);
+        ChronoBankAssetChainableInterface _next = getHeadAsset(_asset);
         uint _counter = 0;
         do {
             _tempTypes[_counter] = _next.assetType();
             _tempAssets[_counter] = address(_next);
             _counter += 1;
 
-            _next = _next.nextAsset();
+            _next = _next.getNextAsset();
         } while (address(_next) != 0x0);
 
         _types = new bytes32[](_counter);
@@ -41,45 +39,45 @@ library ChronoBankAssetUtils {
         }
     }
 
-    function getAssetByType(ChronoBankAssetChainable _asset, bytes32 _assetType)
+    function getAssetByType(ChronoBankAssetChainableInterface _asset, bytes32 _assetType)
     public
     view
     returns (address)
     {
-        ChronoBankAssetChainable _next = getHeadAsset(_asset);
+        ChronoBankAssetChainableInterface _next = getHeadAsset(_asset);
         do {
             if (_next.assetType() == _assetType) {
                 return address(_next);
             }
 
-            _next = _next.nextAsset();
+            _next = _next.getNextAsset();
         } while (address(_next) != 0x0);
     }
 
-    function containsAssetInChain(ChronoBankAssetChainable _asset, address _checkAsset)
+    function containsAssetInChain(ChronoBankAssetChainableInterface _asset, address _checkAsset)
     public
     view
     returns (bool)
     {
-        ChronoBankAssetChainable _next = getHeadAsset(_asset);
+        ChronoBankAssetChainableInterface _next = getHeadAsset(_asset);
         do {
             if (address(_next) == _checkAsset) {
                 return true;
             }
 
-            _next = _next.nextAsset();
+            _next = _next.getNextAsset();
         } while (address(_next) != 0x0);
     }
 
-    function getHeadAsset(ChronoBankAssetChainable _asset)
+    function getHeadAsset(ChronoBankAssetChainableInterface _asset)
     public
     view
-    returns (ChronoBankAssetChainable)
+    returns (ChronoBankAssetChainableInterface)
     {
-        ChronoBankAssetChainable _head = _asset;
-        ChronoBankAssetChainable _previousAsset;
+        ChronoBankAssetChainableInterface _head = _asset;
+        ChronoBankAssetChainableInterface _previousAsset;
         do {
-            _previousAsset = _head.previousAsset();
+            _previousAsset = _head.getPreviousAsset();
             if (address(_previousAsset) == 0x0) {
                 return _head;
             }

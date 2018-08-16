@@ -9,8 +9,9 @@ const ErrorsEnum = require("../common/errors")
 const ERC20Manager = artifacts.require('./ERC20Manager.sol')
 const ERC20Interface = artifacts.require('./ERC20Interface.sol')
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
-const ChronoBankAssetWithFeeProxy = artifacts.require('./ChronoBankAssetWithFeeProxy.sol')
-const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol')
+const ChronoBankAssetWithFeeProxy = artifacts.require('ChronoBankAssetWithFeeProxy')
+const ChronoBankAssetWithFeeRouterInterface = artifacts.require('ChronoBankAssetWithFeeRouterInterface')
+const ChronoBankAssetRouterInterface = artifacts.require('ChronoBankAssetRouterInterface')
 const ChronoBankPlatform = artifacts.require('./ChronoBankPlatform.sol')
 
 function tokenContractBySymbol(symbol, contract) {
@@ -857,7 +858,8 @@ contract('LOC Manager', function(accounts) {
 
         it("should show 1% of transferred to exchange 500000 on rewards contract balance", function () {
             return tokenContractBySymbol(SYMBOL2, ChronoBankAssetWithFeeProxy).then(_assetWithFeeProxy => {
-                return _assetWithFeeProxy.getLatestVersion.call().then(_address => ChronoBankAssetWithFee.at(_address))
+                return _assetWithFeeProxy.getLatestVersion.call().then(_address => ChronoBankAssetRouterInterface.at(_address).getAssetByType("ChronoBankAssetBasicWithFee"))
+                .then(_assetAddress => ChronoBankAssetWithFeeRouterInterface.at(_assetAddress))
                 .then(_assetWithFee => {
                     return _assetWithFee.feeAddress.call()
                     .then(_feeAddress => assert.equal(_feeAddress, Setup.rewardsWallet.address))

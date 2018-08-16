@@ -4,11 +4,6 @@ const ChronoBankAssetProxy = artifacts.require("ChronoBankAssetProxy")
 const ChronoBankAsset = artifacts.require("ChronoBankAsset")
 const ChronoBankAssetWithFeeProxy = artifacts.require("ChronoBankAssetWithFeeProxy")
 const ChronoBankAssetWithFee = artifacts.require("ChronoBankAssetWithFee")
-const ChronoBankAssetPausable = artifacts.require("ChronoBankAssetPausable")
-const ChronoBankAssetBlacklistable = artifacts.require("ChronoBankAssetBlacklistable")
-const ChronoBankAssetBasic = artifacts.require("ChronoBankAssetBasic")
-const ChronoBankAssetBasicWithFee = artifacts.require("ChronoBankAssetBasicWithFee")
-const ChronoBankAssetUtils = artifacts.require('ChronoBankAssetUtils')
 const SafeMath = artifacts.require('SafeMath')
 const StringsLib = artifacts.require('StringsLib')
 const SetStorageInterface_v_1_1 = artifacts.require("SetStorageInterface_v_1_1")
@@ -25,6 +20,17 @@ const TokenFactory = artifacts.require("TokenFactory")
 const ChronoBankTokenExtensionFactory = artifacts.require('ChronoBankTokenExtensionFactory')
 const ChronoBankAssetFactory = artifacts.require("ChronoBankAssetFactory")
 const ChronoBankAssetWithFeeFactory = artifacts.require("ChronoBankAssetWithFeeFactory")
+const ChronoBankAssetBasicFactory = artifacts.require("ChronoBankAssetBasicFactory")
+const ChronoBankAssetBasicWithFeeFactory = artifacts.require("ChronoBankAssetBasicWithFeeFactory")
+const ChronoBankAssetPausableFactory = artifacts.require("ChronoBankAssetPausableFactory")
+const ChronoBankAssetBlacklistableFactory = artifacts.require("ChronoBankAssetBlacklistableFactory")
+
+const ChronoBankAssetBasicLib = artifacts.require("ChronoBankAssetBasicLib")
+const ChronoBankAssetBasicWithFeeLib = artifacts.require("ChronoBankAssetBasicWithFeeLib")
+const ChronoBankAssetPausableLib = artifacts.require("ChronoBankAssetPausableLib")
+const ChronoBankAssetBlacklistableLib = artifacts.require("ChronoBankAssetBlacklistableLib")
+const ChronoBankAssetUtils = artifacts.require('ChronoBankAssetUtils')
+
 const AssetsManager = artifacts.require("AssetsManager")
 const ChronoBankPlatformFactory = artifacts.require('ChronoBankPlatformFactory')
 const PlatformsManager = artifacts.require("PlatformsManager")
@@ -85,14 +91,27 @@ module.exports = (deployer, network, accounts) => {
 		await deployer.link(SetStorageInterface_v_1_1, [ERC20Manager,])
 		await deployer.link(ChronoBankAssetUtils, [ 
 			ChronoBankAssetProxy, 
+			ChronoBankAssetWithFeeProxy, 
+
+			ChronoBankAssetBasicLib,
+			ChronoBankAssetBasicWithFeeLib,
+			ChronoBankAssetPausableLib,
+			ChronoBankAssetBlacklistableLib,
+
 			TokenFactory,
-			ChronoBankAssetPausable, 
-			ChronoBankAssetBlacklistable, 
-			ChronoBankAssetBasic,
-			ChronoBankAssetBasicWithFee, 
+			ChronoBankAssetBasicFactory,
+			ChronoBankAssetBasicWithFeeFactory,
+			ChronoBankAssetPausableFactory,
+			ChronoBankAssetBlacklistableFactory,
 		])
         
         console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] Libraries deploy: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankAssetBasicLib)
+		await deployer.deploy(ChronoBankAssetBasicWithFeeLib)
+		await deployer.deploy(ChronoBankAssetPausableLib)
+		await deployer.deploy(ChronoBankAssetBlacklistableLib)
 	})
 	.then(async () => {
 		await deployer.deploy(Storage)
@@ -282,6 +301,38 @@ module.exports = (deployer, network, accounts) => {
 		await proxyFactory.setAssetFactory("ChronoBankAssetWithFee", ChronoBankAssetWithFeeFactory.address)
 
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetWithFeeFactory: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankAssetBasicFactory, ChronoBankAssetBasicLib.address)
+
+		const proxyFactory = await TokenFactory.deployed()
+		await proxyFactory.setAssetFactory("ChronoBankAssetBasic", ChronoBankAssetBasicFactory.address)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetBasicFactory deploy: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankAssetBasicWithFeeFactory, ChronoBankAssetBasicWithFeeLib.address)
+
+		const proxyFactory = await TokenFactory.deployed()
+		await proxyFactory.setAssetFactory("ChronoBankAssetBasicWithFee", ChronoBankAssetBasicWithFeeFactory.address)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetBasicWithFeeFactory: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankAssetPausableFactory, ChronoBankAssetPausableLib.address)
+
+		const proxyFactory = await TokenFactory.deployed()
+		await proxyFactory.setAssetFactory("ChronoBankAssetPausable", ChronoBankAssetPausableFactory.address)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetPausableFactory deploy: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankAssetBlacklistableFactory, ChronoBankAssetBlacklistableLib.address)
+
+		const proxyFactory = await TokenFactory.deployed()
+		await proxyFactory.setAssetFactory("ChronoBankAssetBlacklistable", ChronoBankAssetBlacklistableFactory.address)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBankAssetBlacklistable deploy: #done`)
 	})
 	.then(async () => {
 		await deployer.deploy(AssetsManager, Storage.address, 'AssetsManager')
@@ -674,7 +725,7 @@ module.exports = (deployer, network, accounts) => {
 		let platformAddr
 		const event = (await eventsHelper.findEvent([platformsManager,], createPlatformTx, "PlatformRequested"))[0]
 		if (event === undefined) {
-			platformAddr = await platformsManager.getPlatformForUserAtIndex.call(systemOwner, 0)
+			throw "No event for platform creation was found. Check access rights for platforms manager and asset manager"
 		} else {
 			platformAddr = event.args.platform
 		}

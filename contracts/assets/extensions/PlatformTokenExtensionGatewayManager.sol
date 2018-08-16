@@ -16,6 +16,8 @@ import "../../core/storage/StorageManager.sol";
 import "../../core/platform/ChronoBankPlatformInterface.sol";
 import "../../core/platform/ChronoBankAssetOwnershipManager.sol";
 import "../../core/platform/ChronoBankAssetProxyInterface.sol";
+import "../../core/platform/assets/libs/ChronoBankAssetChainableInterface.sol";
+import "../../core/platform/assets/routers/ChronoBankAssetRouterInterface.sol";
 import "../../core/contracts/ContractsManagerInterface.sol";
 import "../../core/erc20/ERC20ManagerInterface.sol";
 import "../../core/erc20/ERC20Interface.sol";
@@ -118,7 +120,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     onlyContractOwner
     returns (uint) 
     {
-        require(_contractsManager != 0x0);
+        require(_contractsManager != 0x0, "TOKEN_EXTENSION_INVALID_CONTRACTSMANAGER_ADDRESS");
 
         bool reinitialized = (contractsManager != 0x0);
         if (contractsManager == 0x0 || contractsManager != _contractsManager) {
@@ -137,7 +139,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     onlyContractOwner 
     {
         ContractsManagerInterface(contractsManager).removeContract(this);
-        suicide(msg.sender);
+        selfdestruct(msg.sender);
     }
 
     /// @notice Prepares ownership pass.
@@ -250,7 +252,16 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     onlyPlatformOwner
     returns (uint resultCode)
     {
-        return _createAssetWithoutFee(_symbol, _name, _description, _value, _decimals, _isMint, _tokenImageIpfsHash, [uint(0)]);
+        return _createAssetWithoutFee(
+            _symbol, 
+            _name, 
+            _description, 
+            _value, 
+            _decimals, 
+            _isMint, 
+            _tokenImageIpfsHash, 
+            [uint(0)]
+        );
     }
 
     function _createAssetWithoutFee(
@@ -310,7 +321,18 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     public
     onlyPlatformOwner
     returns (uint resultCode) {
-        return _createAssetWithFee(_symbol, _name, _description, _value, _decimals, _isMint, _feeAddress, _feePercent, _tokenImageIpfsHash, [uint(0)]);
+        return _createAssetWithFee(
+            _symbol, 
+            _name, 
+            _description, 
+            _value, 
+            _decimals, 
+            _isMint, 
+            _feeAddress, 
+            _feePercent, 
+            _tokenImageIpfsHash, 
+            [uint(0)]
+        );
     }
 
     function _createAssetWithFee(
@@ -329,14 +351,20 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     featured(_result)
     returns (uint resultCode)
     {
-        require(_feeAddress != 0x0);
+        require(_feeAddress != 0x0, "TOKEN_EXTENSION_INVALID_FEE_ADDRESS");
 
         resultCode = _prepareAndIssueAssetOnPlatform(_symbol, _name, _description, _value, _decimals, _isMint);
         if (resultCode != OK) {
             return _emitError(resultCode);
         }
 
-        address _token = _bindAssetWithToken(_deployAssetWithFee(_symbol, _feeAddress, _feePercent), _symbol, _name, _decimals, _tokenImageIpfsHash);
+        address _token = _bindAssetWithToken(
+            _deployAssetWithFee(_symbol, _feeAddress, _feePercent), 
+            _symbol, 
+            _name, 
+            _decimals, 
+            _tokenImageIpfsHash
+            );
 
         _emitAssetCreated(platform, _symbol, _token, msg.sender);
 
@@ -364,8 +392,8 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     featured(_result)
     returns (uint)
     {
-        require(_symbol != 0x0);
-        require(_crowdsaleFactoryName != 0x0);
+        require(_symbol != 0x0, "TOKEN_EXTENSION_INVALID_SYMBOL");
+        require(_crowdsaleFactoryName != 0x0, "TOKEN_EXTENSION_INVALID_FACTORY_NAME");
 
         ChronoBankAssetOwnershipManager _assetOwnershipManager = ChronoBankAssetOwnershipManager(getAssetOwnershipManager());
         CrowdsaleManager crowdsaleManager = CrowdsaleManager(lookupManager("CrowdsaleManager"));
@@ -375,7 +403,7 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(result);
         }
 
-        if( OK != _assetOwnershipManager.addAssetPartOwner(_symbol, _crowdsale)) revert();
+        if (OK != _assetOwnershipManager.addAssetPartOwner(_symbol, _crowdsale)) revert("TOKEN_EXTENSION_CANNOT_ADD_PARTOWNER_TO_ASSET");
 
         _emitCrowdsaleCampaignCreated(platform, _symbol, _crowdsale, msg.sender);
 
@@ -401,14 +429,14 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
             return _emitError(result);
         }
 
-        if (OK != _assetOwnershipManager.removeAssetPartOwner(_symbol, _crowdsale)) revert();
+        if (OK != _assetOwnershipManager.removeAssetPartOwner(_symbol, _crowdsale)) revert("TOKEN_EXTENSION_CANNOT_REMOVE_PARTOWNER_FROM_ASSET");
 
         _emitCrowdsaleCampaignRemoved(platform, _symbol, _crowdsale, msg.sender);
         return OK;
     }
 
     function () public payable {
-        revert();
+        revert("TOKEN_EXTENSION_FALLBACK_IS_INACTIVE");
     }
 
     /* INTERNAL */
@@ -446,42 +474,88 @@ contract PlatformTokenExtensionGatewayManager is FeatureFeeAdapter {
     {
         token = getTokenFactory().createProxy();
         
-
-        if (OK != ChronoBankPlatformInterface(platform).setProxy(token, _symbol)) revert();
+        if (OK != ChronoBankPlatformInterface(platform).setProxy(token, _symbol)) revert("TOKEN_EXTENSION_CANNOT_SET_PROXY_TO_PLATFORM");
 
         ChronoBankAssetOwnershipManager _assetOwnershipManager = ChronoBankAssetOwnershipManager(getAssetOwnershipManager());
         ChronoBankAssetProxyInterface(token).init(platform, StringsLib.bytes32ToString(_symbol), _name);
         ChronoBankAssetProxyInterface(token).proposeUpgrade(_asset);
-        ChronoBankAsset(_asset).init(ChronoBankAssetProxyInterface(token));
-        if (OK != _assetOwnershipManager.addAssetPartOwner(_symbol, this)) revert();
+        ChronoBankAssetRouterInterface(_asset).init(ChronoBankAssetProxyInterface(token), true);
+        if (OK != _assetOwnershipManager.addAssetPartOwner(_symbol, this)) revert("TOKEN_EXTENSION_CANNOT_ADD_PARTOWNER_TO_ASSET");
+
         _assetOwnershipManager.changeOwnership(_symbol, msg.sender);
 
-        if(OK != _addToken(token, _symbol, _decimals, _ipfsHash)) revert();
+        if(OK != _addToken(token, _symbol, _decimals, _ipfsHash)) revert("TOKEN_EXTENSION_CANNOT_ADD_TOKEN_TO_ERC20MANAGER");
     }
 
     /// @dev Creates asset with fee and setup according values. PRIVATE
     /// @param _feeAddress fee destination address
     /// @param _fee fee percent value
     function _deployAssetWithFee(bytes32 _crate, address _feeAddress, uint32 _fee) private returns (address _asset) {
-        _asset = getTokenFactory().createOwnedAsset("ChronoBankAssetWithFee", this, platform, _crate);
-        
+        _asset = getTokenFactory().createOwnedAsset("ChronoBankAssetBasicWithFee", this, platform, _crate);
         StorageManager _storageManager = StorageManager(Storage(platform).manager());
-        require(OK == _storageManager.giveAccess(_asset, _crate), "Could not provide write access for a created asset");
-
+        MultiEventsHistory _eventsHistory = MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory());
+        _setupAssetWithManagers(_asset, _crate, _storageManager, _eventsHistory);
+        
         FeeInterface(_asset).setupFee(_feeAddress, _fee);
-        require(MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory()).authorize(_asset));
         Owned(_asset).transferContractOwnership(msg.sender);
+
+        return _configureAssetWithFeaturedAssets(_asset, _crate, _storageManager, _eventsHistory);
     }
 
     /// @dev Creates asset without fee. PRIVATE
     /// @return _asset created asset address
     function _createAsset(bytes32 _crate) private returns (address _asset) {
-        _asset = getTokenFactory().createAsset("ChronoBankAsset", platform, _crate);
-        
+        _asset = getTokenFactory().createAsset("ChronoBankAssetBasic", platform, _crate);
         StorageManager _storageManager = StorageManager(Storage(platform).manager());
-        require(OK == _storageManager.giveAccess(_asset, _crate), "Could not provide write access for a created asset");
+        MultiEventsHistory _eventsHistory = MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory());
+        _setupAssetWithManagers(_asset, _crate, _storageManager, _eventsHistory);
 
-        require(MultiEventsHistory(ChronoBankPlatformInterface(platform).eventsHistory()).authorize(_asset));
+        return _configureAssetWithFeaturedAssets(_asset, _crate, _storageManager, _eventsHistory);
+    }
+
+    function _configureAssetWithFeaturedAssets(
+        address _asset, 
+        bytes32 _crate,
+        StorageManager _storageManager, 
+        MultiEventsHistory _eventsHistory
+    ) 
+    private 
+    returns (address _headAsset) 
+    {
+        address _pausableAsset = getTokenFactory().createAsset("ChronoBankAssetPausable", platform, _crate);
+        _setupAssetWithManagers(_pausableAsset, _crate, _storageManager, _eventsHistory);
+
+        address _blacklistableAsset = getTokenFactory().createAsset("ChronoBankAssetBlacklistable", platform, _crate);
+        _setupAssetWithManagers(_blacklistableAsset, _crate, _storageManager, _eventsHistory);
+
+        ChronoBankAssetChainableInterface[] memory _chainableAssets = new ChronoBankAssetChainableInterface[](2);
+        _chainableAssets[0] = ChronoBankAssetChainableInterface(_blacklistableAsset);
+        _chainableAssets[1] = ChronoBankAssetChainableInterface(_asset);
+            
+        require(
+            ChronoBankAssetChainableInterface(_pausableAsset).chainAssets(_chainableAssets),
+            "TOKEN_EXTENSION_CANNOT_CHAIN_ASSETS"
+        );
+
+        return _pausableAsset;
+    }
+
+    function _setupAssetWithManagers(
+        address _asset, 
+        bytes32 _crate, 
+        StorageManager _storageManager, 
+        MultiEventsHistory _eventsHistory
+    )
+    private
+    {
+        require(
+            OK == _storageManager.giveAccess(_asset, _crate), 
+            "TOKEN_EXTENSION_FAIL_TO_GIVE_WRITE_ACCESS_FOR_ASSET"
+        );
+        require(
+            _eventsHistory.authorize(_asset),
+            "TOKEN_EXTENSION_FAIL_TO_AUTHORIZED_IN_EVENTSHISTORY"
+        );
     }
 
     /// @dev Adds token to ERC20Manager contract

@@ -22,13 +22,13 @@ contract TokenExtensionRouter is BaseRouter, PlatformTokenExtensionGatewayManage
     /** @dev platform address to which token extension is attached */
     address public platform;
 
-    function TokenExtensionRouter(address _contractsManager, address _platform) public {
+    constructor(address _contractsManager, address _platform) public {
         contractsManager = _contractsManager;
         platform = _platform;
     }
 
     function backend() internal constant returns (address _backend) {
         _backend = ContractsManagerInterface(contractsManager).getContractAddressByType("TokenExtensionGateway");
-        require(_backend != 0x0);
+        require(_backend != 0x0, "TOKEN_EXTENSION_FAILED_TO_FETCH_BACKEND");
     }
 }

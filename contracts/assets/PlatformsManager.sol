@@ -182,7 +182,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         Storage(_platform).setManager(Manager(_storageManager));
         require(
             OK == StorageManager(_storageManager).giveAccess(_platform, CHRONOBANK_PLATFORM_CRATE),
-            "Cannot give access to Chronobank Platform storage"
+            "PLATFORMS_MANAGER_CANNOT_GIVE_WRITE_ACCESS_TO_PLATFORM"
         );
 
         store.add(platforms, _platform);
@@ -193,7 +193,7 @@ contract PlatformsManager is FeatureFeeAdapter, BaseManager, PlatformsManagerEmi
         if (resultCode == OK) {
             _tokenExtension = assetsManager.getTokenExtension(_platform);
             ChronoBankAssetOwnershipManager(_platform).addPartOwner(_tokenExtension);
-            /// NOTE: need to provide authorized access to allow asset creation on a platform
+            // /// NOTE: need to provide authorized access to allow asset creation on a platform
             StorageManager(_storageManager).authorize(_tokenExtension);
         }
 

@@ -5,26 +5,23 @@
 
 pragma solidity ^0.4.24;
 
-import "./ChronoBankAssetAbstract.sol";
 
-contract ChronoBankAssetBlacklistable is ChronoBankAssetAbstract {
+import "./ChronoBankAssetLibAbstract.sol";
+import "./ChronoBankAssetChainableImpl.sol";
+import "../routers/ChronoBankAssetBlacklistableRouter.sol";
 
-    /// @dev banned addresses
-    StorageInterface.AddressBoolMapping private blacklistStorage;
 
-    /// @dev restriction/Unrestriction events
-    event Restricted(bytes32 indexed symbol, address restricted);
-    event Unrestricted(bytes32 indexed symbol, address unrestricted);
-
+contract ChronoBankAssetBlacklistableLib is 
+    ChronoBankAssetLibAbstract,
+    ChronoBankAssetBlacklistableCore,
+    ChronoBankAssetBlacklistableEmitter,
+    ChronoBankAssetChainableImpl
+{    
     /// @dev Only acceptable (not in blacklist) addresses are allowed to call.
     modifier onlyAcceptable(address _address) {
         if (!blacklist(_address)) {
             _;
         }
-    }
-
-    constructor(Storage _platform, bytes32 _crate) ChronoBankAssetAbstract(_platform, _crate) public {
-        blacklistStorage.init("blacklist");
     }
 
     function assetType()
@@ -71,20 +68,12 @@ contract ChronoBankAssetBlacklistable is ChronoBankAssetAbstract {
         return true;
     }
 
-    function emitRestricted(bytes32 _symbol, address _restricted) public {
-        emit Restricted(_symbol, _restricted);
-    }
-
-    function emitUnrestricted(bytes32 _symbol, address _unrestricted) public {
-        emit Unrestricted(_symbol, _unrestricted);
-    }
-
     function _emitRestricted(address _restricted) private {
-        ChronoBankAssetBlacklistable(eventsHistory()).emitRestricted(proxy().smbl(), _restricted);
+        ChronoBankAssetBlacklistableEmitter(eventsHistory()).emitRestricted(proxy().smbl(), _restricted);
     }
 
     function _emitUnrestricted(address _unrestricted) private {
-        ChronoBankAssetBlacklistable(eventsHistory()).emitUnrestricted(proxy().smbl(), _unrestricted);
+        ChronoBankAssetBlacklistableEmitter(eventsHistory()).emitUnrestricted(proxy().smbl(), _unrestricted);
     }
 
     function _beforeTransferWithReference(

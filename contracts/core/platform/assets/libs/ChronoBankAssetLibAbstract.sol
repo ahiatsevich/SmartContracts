@@ -6,38 +6,19 @@
 pragma solidity ^0.4.24;
 
 
-import "../ChronoBankAssetInterface.sol";
-import {ChronoBankAssetProxyInterface as ChronoBankAssetProxy} from "../ChronoBankAssetProxyInterface.sol";
-import {ChronoBankPlatformInterface as ChronoBankPlatform} from "../ChronoBankPlatformInterface.sol";
-import "../../storage/StorageAdapter.sol";
-import "../../storage/Storage.sol";
-import "./ChronoBankAssetUtils.sol";
+import {ChronoBankAssetProxyInterface as ChronoBankAssetProxy} from "../../ChronoBankAssetProxyInterface.sol";
+import {ChronoBankPlatformInterface as ChronoBankPlatform} from "../../ChronoBankPlatformInterface.sol";
+import "./ChronoBankAssetChainableInterface.sol";
+import "../routers/ChronoBankAssetRouter.sol";
+import "../routers/ChronoBankAssetAbstractCore.sol";
+import "../../ChronoBankAssetInterface.sol";
 
 
-contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
-
+contract ChronoBankAssetLibAbstract is 
+    ChronoBankAssetRouterCore,
+    ChronoBankAssetAbstractCore
+{
     bytes32 constant CHRONOBANK_PLATFORM_CRATE = "ChronoBankPlatform";
-    uint constant ASSETS_CHAIN_MAX_LENGTH = 20;
-
-    /// @dev Assigned asset proxy contract
-    StorageInterface.Address private proxyStorage;
-
-    ChronoBankAssetAbstract public previousAsset;
-    ChronoBankAssetAbstract public nextAsset;
-    bool public chainingFinalized;
-
-    string public version = "v0.0.1";
-
-    function assetType() public pure returns (bytes32);
-
-    /// @dev Only assigned proxy is allowed to call.
-    modifier onlyProxy {
-        if (msg.sender == address(proxy()) || 
-            msg.sender == address(previousAsset)
-        ) {
-            _;
-        }
-    }
 
     /// @dev Only assets's admins are allowed to execute
     modifier onlyAuthorized {
@@ -46,18 +27,13 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
         }
     }
 
-    modifier onlyNotFinalizedChaining {
-        require(chainingFinalized == false, "Chaining should not be finalized");
-        _;
-    }
-
-    constructor(Storage _platform, bytes32 _crate) StorageAdapter(_platform, _crate) public {
-        require(
-            _crate != CHRONOBANK_PLATFORM_CRATE, 
-            "Asset crate should not have the same space as a platform"
-        );
-
-        proxyStorage.init("proxy");
+    /// @dev Only assigned proxy is allowed to call.
+    modifier onlyProxy {
+        if (msg.sender == address(proxy()) || 
+            msg.sender == address(ChronoBankAssetChainableInterface(this).getPreviousAsset())
+        ) {
+            _;
+        }
     }
 
     /// @notice Sets asset proxy address.
@@ -71,14 +47,14 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
     {
         require(
             address(store.store) == _proxy.chronoBankPlatform(), 
-            "ChronoBank platform should be a storage of an asset"
+            "ASSET_LIB_INVALID_STORAGE_INITIALIZED"
         );
 
         if (_finalizeChaining) {
-            finalizeAssetChaining();
+            ChronoBankAssetChainableInterface(this).finalizeAssetChaining();
         }
 
-        address _gotProxy = address(proxy());
+        address _gotProxy = proxy();
         if (_gotProxy != 0x0 && address(_proxy) == _gotProxy) {
             return true;
         }
@@ -87,24 +63,16 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
             return false;
         }
 
-        store.set(proxyStorage, _proxy);
+        store.set(proxyStorage, address(_proxy));
         return true;
     }
 
-    function getChainedAssets() 
-    public
-    view
-    returns (bytes32[] _types, address[] _assets) 
+    function proxy() 
+    public 
+    view 
+    returns (ChronoBankAssetProxy) 
     {
-        return ChronoBankAssetUtils.getChainedAssets(ChronoBankAssetChainable(this));
-    }
-
-    function getAssetByType(bytes32 _assetType)
-    public
-    view
-    returns (address)
-    {
-        return ChronoBankAssetUtils.getAssetByType(ChronoBankAssetChainable(this), _assetType);
+        return ChronoBankAssetProxy(store.get(proxyStorage));
     }
 
     /// @notice Gets eventsHistory contract used for events' triggering
@@ -117,78 +85,6 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
         return platform.eventsHistory() != address(platform) 
             ? platform.eventsHistory() 
             : this;
-    }
-
-    function proxy() 
-    public 
-    view 
-    returns (ChronoBankAssetProxy) 
-    {
-        return ChronoBankAssetProxy(store.get(proxyStorage));
-    }
-
-    function chainAssets(ChronoBankAssetAbstract[] _assets)
-    external
-    onlyNotFinalizedChaining
-    returns (bool)
-    {
-        require(_assets.length - 1 <= ASSETS_CHAIN_MAX_LENGTH, "Max chain length is exceeded");
-        require(address(previousAsset) == 0x0, "Not allowed to make a circle chain: previousAsset should be 0x0 for the first asset");
-        
-        if (_assets.length == 0) {
-            return false;
-        }
-
-        return _chainAssets(_assets, 0);
-    }
-
-    function _chainAssets(ChronoBankAssetAbstract[] _assets, uint _startFromIdx)
-    private
-    returns (bool _result)
-    {
-        nextAsset = _assets[_startFromIdx];
-        require(_assets[_startFromIdx].__setPreviousAsset(this), "Cannot set ourself as previous asset in assets chain");
-
-        _result = _assets[_startFromIdx].__chainAssetsFromIdx(_assets, _startFromIdx + 1);
-        if (_result) {
-            chainingFinalized = true;
-        }
-    }
-
-    function __chainAssetsFromIdx(ChronoBankAssetAbstract[] _assets, uint _startFromIdx)
-    external
-    onlyNotFinalizedChaining
-    returns (bool)
-    {
-        require(msg.sender == address(previousAsset), "Should be called only by previous asset");
-        require(_assets[_startFromIdx - 1] == this, "Invalid chain of connect");
-        
-        if (_startFromIdx >= _assets.length) {
-            chainingFinalized = true;
-            return true;
-        }
-
-        return _chainAssets(_assets, _startFromIdx);
-    }
-
-    function __setPreviousAsset(ChronoBankAssetAbstract _asset)
-    external
-    onlyNotFinalizedChaining
-    returns (bool)
-    {
-        require(msg.sender == address(_asset), "Only asset could set up previous asset");
-        // require(address(_asset.nextAsset()) == address(this), "Only when `next` property set to the current asset");
-        previousAsset = _asset;
-
-        return true;
-    }
-
-    function finalizeAssetChaining()
-    public
-    {
-        if (!chainingFinalized) {
-            chainingFinalized = true;
-        }
     }
 
     /// @notice Passes execution into virtual function.
@@ -209,7 +105,7 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
             return false;
         }
 
-        ChronoBankAssetInterface _nextAsset = nextAsset;
+        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(ChronoBankAssetChainableInterface(this).getNextAsset());
         if (address(_nextAsset) == 0x0 || 
             _nextAsset.__transferWithReference(_to, _value, _reference, _sender)
         ) {
@@ -260,7 +156,7 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
             return false;
         }
 
-        ChronoBankAssetInterface _nextAsset = nextAsset;
+        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(ChronoBankAssetChainableInterface(this).getNextAsset());
         if (address(_nextAsset) == 0x0 || 
             _nextAsset.__transferFromWithReference(_from, _to, _value, _reference, _sender)
         ) {
@@ -307,7 +203,7 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
             return false;
         }
 
-        ChronoBankAssetInterface _nextAsset = nextAsset;
+        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(ChronoBankAssetChainableInterface(this).getNextAsset());
         if (address(_nextAsset) == 0x0 || 
             _nextAsset.__approve(_spender, _value, _sender)
         ) {
@@ -336,5 +232,4 @@ contract ChronoBankAssetAbstract is ChronoBankAssetInterface, StorageAdapter {
     {
         return ChronoBankPlatform(proxy().chronoBankPlatform());
     }
-
 }

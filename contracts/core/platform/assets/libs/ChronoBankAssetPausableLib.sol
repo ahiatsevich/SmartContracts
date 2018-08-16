@@ -5,26 +5,23 @@
 
 pragma solidity ^0.4.24;
 
-import "./ChronoBankAssetAbstract.sol";
 
-contract ChronoBankAssetPausable is ChronoBankAssetAbstract {
+import "./ChronoBankAssetLibAbstract.sol";
+import "./ChronoBankAssetChainableImpl.sol";
+import "../routers/ChronoBankAssetPausableRouter.sol";
 
-    /// @dev Paused/Unpaused events
-    event Paused(bytes32 indexed symbol);
-    event Unpaused(bytes32 indexed symbol);
 
-    /// @dev stops asset transfers
-    StorageInterface.Bool private pausedStorage;
-    
+contract ChronoBankAssetPausableLib is 
+    ChronoBankAssetLibAbstract,
+    ChronoBankAssetPausableCore,
+    ChronoBankAssetPausableEmitter,
+    ChronoBankAssetChainableImpl
+{    
     /// @dev Only not paused tokens could go further.
     modifier onlyNotPaused {
         if (!paused()) {
             _;
         }
-    }
-
-    constructor(Storage _platform, bytes32 _crate) ChronoBankAssetAbstract(_platform, _crate) public {
-        pausedStorage.init("paused");
     }
 
     function assetType()
@@ -67,20 +64,12 @@ contract ChronoBankAssetPausable is ChronoBankAssetAbstract {
         return true;
     }
 
-    function emitPaused(bytes32 _symbol) public {
-        emit Paused(_symbol);
-    }
-
-    function emitUnpaused(bytes32 _symbol) public {
-        emit Unpaused(_symbol);
-    }
-
     function _emitPaused() private {
-        ChronoBankAssetPausable(eventsHistory()).emitPaused(proxy().smbl());
+        ChronoBankAssetPausableEmitter(eventsHistory()).emitPaused(proxy().smbl());
     }
 
     function _emitUnpaused() private {
-        ChronoBankAssetPausable(eventsHistory()).emitUnpaused(proxy().smbl());
+        ChronoBankAssetPausableEmitter(eventsHistory()).emitUnpaused(proxy().smbl());
     }
 
     function _beforeTransferWithReference(
