@@ -1,6 +1,6 @@
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
-const ChronoBankAssetWithFeeRouter = artifacts.require("ChronoBankAssetRouter");
-const ChronoBankAssetWithFeeRouterInterface = artifacts.require("ChronoBankAssetRouterInterface");
+const ChronoBankAssetWithFeeRouter = artifacts.require("ChronoBankAssetWithFeeRouter");
+const ChronoBankAssetWithFeeRouterInterface = artifacts.require("ChronoBankAssetWithFeeRouterInterface");
 const ChronoBankAssetPausableRouter = artifacts.require("ChronoBankAssetPausableRouter");
 const ChronoBankAssetPausableRouterInterface = artifacts.require("ChronoBankAssetPausableRouterInterface");
 const ChronoBankAssetBlacklistableRouter = artifacts.require("ChronoBankAssetBlacklistableRouter");
@@ -65,7 +65,7 @@ contract('ChronoBankAssetWithFee', function(accounts) {
     
     // basic with fee
     chronoBankAsset = ChronoBankAssetWithFeeRouterInterface.at(
-      (await ChronoBankAssetWithFeeRouter.new(chronoBankPlatform.address, SYMBOL, Setup.ChronoBankAssetBasicWithFee.address)).address
+      (await ChronoBankAssetWithFeeRouter.new(chronoBankPlatform.address, SYMBOL, Setup.chronoBankAssetBasicWithFeeLib.address)).address
     )
     await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
 
@@ -1184,7 +1184,7 @@ contract('ChronoBankAssetWithFee', function(accounts) {
     let asset
 
     beforeEach(async () => {
-      asset = ChronoBankAssetBasicWithFee.at(await chronoBankAsset.getAssetByType("ChronoBankAssetBasicWithFee"))
+      asset = ChronoBankAssetWithFeeRouterInterface.at(await chronoBankAsset.getAssetByType("ChronoBankAssetBasicWithFee"))
     })
 
     it('should take min fee on transfer', function() {
