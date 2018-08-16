@@ -7,6 +7,7 @@ pragma solidity ^0.4.24;
 
 
 import "./ChronoBankPlatform.sol";
+import "./ChronoBankPlatformRouter.sol";
 import "../event/MultiEventsHistory.sol";
 import "../contracts/ContractsManagerInterface.sol";
 
@@ -16,6 +17,22 @@ contract ChronoBankPlatformFactory is Owned {
 
     uint constant OK = 1;
 
+    address public platformBackendProvider;
+
+    constructor(address _platformBackendProvider) public {
+        setPlatformBackendProvider(_platformBackendProvider);
+    }
+
+    function setPlatformBackendProvider(address _updatedPlatformBackendProvider)
+    public
+    onlyContractOwner
+    returns (uint)
+    {
+        require(_updatedPlatformBackendProvider != 0x0, "PLATFORM_FACTORY_INVALID_BACKEND_PROVIDER_ADDRESS");
+        platformBackendProvider = _updatedPlatformBackendProvider;
+        return OK;
+    }
+
     /// @notice Creates a brand new platform and transfers platform ownership to msg.sender
     /// @param _eventsHistory events history address
     function createPlatform(
@@ -24,7 +41,7 @@ contract ChronoBankPlatformFactory is Owned {
     public 
     returns (address) 
     {
-        ChronoBankPlatform _platform = new ChronoBankPlatform();
+        ChronoBankPlatform _platform = ChronoBankPlatform(new ChronoBankPlatformRouter(platformBackendProvider));
 
         if (!_eventsHistory.authorize(_platform)) {
             revert("EventsHistory couldn't authorize Chronobank Platform");

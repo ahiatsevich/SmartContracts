@@ -18,6 +18,7 @@ const Roles2Library = artifacts.require("Roles2Library")
 const FeatureFeeManager = artifacts.require("FeatureFeeManager")
 const TokenFactory = artifacts.require("TokenFactory")
 const ChronoBankTokenExtensionFactory = artifacts.require('ChronoBankTokenExtensionFactory')
+const ChronoBankPlatformBackendProvider = artifacts.require("ChronoBankPlatformBackendProvider")
 const ChronoBankAssetFactory = artifacts.require("ChronoBankAssetFactory")
 const ChronoBankAssetWithFeeFactory = artifacts.require("ChronoBankAssetWithFeeFactory")
 const ChronoBankAssetBasicFactory = artifacts.require("ChronoBankAssetBasicFactory")
@@ -57,7 +58,6 @@ const ERC20Interface = artifacts.require("ERC20Interface")
 const TimePlatform = artifacts.require("TimePlatform")
 const TimeAsset = artifacts.require("TimeAsset")
 const TimeAssetProxy = artifacts.require("TimeAssetProxy")
-
 
 const FakeCoin = artifacts.require("FakeCoin")
 const FakeCoin2 = artifacts.require("FakeCoin2")
@@ -367,7 +367,12 @@ module.exports = (deployer, network, accounts) => {
 		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] StorageManager Factory setup: #done`)
 	})
 	.then(async () => {
-		await deployer.deploy(ChronoBankPlatformFactory)
+		await deployer.deploy(ChronoBankPlatformBackendProvider, ChronoBankPlatform.address)
+
+		console.log(`[MIGRATION] [${parseInt(path.basename(__filename))}] ChronoBank Platform Backend Provider deploy: #done`)
+	})
+	.then(async () => {
+		await deployer.deploy(ChronoBankPlatformFactory, ChronoBankPlatformBackendProvider.address)
 
 		const history = await MultiEventsHistory.deployed()
 		await history.authorize(ChronoBankPlatformFactory.address)

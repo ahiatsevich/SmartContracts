@@ -8,6 +8,7 @@ pragma solidity ^0.4.21;
 import {Storage as StorageFoundation} from "../storage/Storage.sol";
 import "../storage/StorageAdapter.sol";
 import "./ChronoBankPlatformEmitter.sol";
+import "./ChronoBankPlatformRouter.sol";
 import "../lib/SafeMath.sol";
 
 
@@ -31,8 +32,13 @@ contract ProxyEventsEmitter {
 ///
 ///  Note: all the non constant functions return false instead of throwing in case if state change
 /// didn't happen yet.
-contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlatformEmitter {
-
+contract ChronoBankPlatform is 
+    StorageFoundation, 
+    StorageAdapter, 
+    ChronoBankPlatformRouterCore,
+    ChronoBankPlatformCore, 
+    ChronoBankPlatformEmitter 
+{
     uint constant OK = 1;
 
     using SafeMath for uint;
@@ -53,45 +59,6 @@ contract ChronoBankPlatform is StorageFoundation, StorageAdapter, ChronoBankPlat
     uint constant CHRONOBANK_PLATFORM_SHOULD_RECOVER_TO_NEW_ADDRESS = CHRONOBANK_PLATFORM_SCOPE + 12;
     uint constant CHRONOBANK_PLATFORM_ASSET_IS_NOT_ISSUED = CHRONOBANK_PLATFORM_SCOPE + 13;
     uint constant CHRONOBANK_PLATFORM_INVALID_INVOCATION = CHRONOBANK_PLATFORM_SCOPE + 17;
-
-    bytes32 constant CHRONOBANK_PLATFORM_CRATE = "ChronoBankPlatform";
-
-    /// @dev Asset's owner id
-    StorageInterface.Bytes32UIntMapping assetOwner;
-    /// @dev Asset's total supply
-    StorageInterface.Bytes32UIntMapping assetTotalSupply;
-    /// @dev Asset's name, for information purposes.
-    StorageInterface.StringMapping assetName;
-    /// @dev Asset's description, for information purposes.
-    StorageInterface.StringMapping assetDescription;
-    /// @dev Indicates if asset have dynamic or fixed supply
-    StorageInterface.Bytes32BoolMapping assetIsReissuable;
-    /// @dev Proposed number of decimals
-    StorageInterface.Bytes32UInt8Mapping assetBaseUnit;
-    /// @dev Holders wallets partowners
-    StorageInterface.Bytes32UIntBoolMapping assetPartowners;
-    /// @dev Holders wallets balance
-    StorageInterface.Bytes32UIntUIntMapping assetWalletBalance;
-    /// @dev Holders wallets allowance
-    StorageInterface.Bytes32UIntUIntUIntMapping assetWalletAllowance;
-
-    /// @dev Iterable mapping pattern is used for holders.
-    StorageInterface.UInt holdersCountStorage;
-    /// @dev Current address of the holder.
-    StorageInterface.UIntAddressMapping holdersAddressStorage;
-    /// @dev Addresses that are trusted with recovery proocedure.
-    StorageInterface.UIntAddressBoolMapping holdersTrustStorage;
-    /// @dev This is an access address mapping. Many addresses may have access to a single holder.
-    StorageInterface.AddressUIntMapping holderIndexStorage;
-
-    /// @dev List of symbols that exist in a platform
-    StorageInterface.Set symbolsStorage;
-
-    /// @dev Asset symbol to asset proxy mapping.
-    StorageInterface.Bytes32AddressMapping proxiesStorage;
-
-    /// @dev Co-owners of a platform. Has less access rights than a root contract owner
-    StorageInterface.AddressBoolMapping partownersStorage;
 
     /// @dev Should use interface of the emitter, but address of events history.
     address public eventsHistory;
