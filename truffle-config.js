@@ -4,7 +4,7 @@ networks: {
       host: 'localhost',
       port: 8545,
       network_id: '*', // Match any network id
-      gas: 5700000
+      gas: 6000000
     }
   },
   solc: {
@@ -13,5 +13,5 @@ networks: {
       runs: 200
     }
   },
-  migrations_directory: './migrations'
+  migrations_directory: './migrations-dev-full'
 }
