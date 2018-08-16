@@ -3,6 +3,10 @@ const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
 const ChronoBankAssetWithFeeProxy = artifacts.require('./ChronoBankAssetWithFeeProxy.sol')
 const ChronoBankAsset = artifacts.require('./ChronoBankAsset.sol')
 const ChronoBankAssetWithFee = artifacts.require('./ChronoBankAssetWithFee.sol')
+const ChronoBankAssetBasicLib = artifacts.require('ChronoBankAssetBasicLib')
+const ChronoBankAssetBasicWithFeeLib = artifacts.require('ChronoBankAssetBasicWithFeeLib')
+const ChronoBankAssetPausableLib = artifacts.require('ChronoBankAssetPausableLib')
+const ChronoBankAssetBlacklistableLib = artifacts.require('ChronoBankAssetBlacklistableLib')
 const LOCManager = artifacts.require('./LOCManager.sol')
 const LOCWallet = artifacts.require('./LOCWallet.sol')
 const ContractsManager = artifacts.require('./ContractsManager.sol')
@@ -74,6 +78,10 @@ let chronoBankAsset
 let chronoBankAssetProxy
 let chronoBankAssetWithFee
 let chronoBankAssetWithFeeProxy
+let chronoBankAssetBasicLib
+let chronoBankAssetBasicWithFeeLib
+let chronoBankAssetPausableLib
+let chronoBankAssetBlacklistableLib
 let multiEventsHistory
 let storageManager
 let storageManagerFactory
@@ -119,6 +127,10 @@ var setup = function (callback) {
       ChronoBankAssetWithFee.deployed(),
       ChronoBankAssetProxy.deployed(),
       ChronoBankAssetWithFeeProxy.deployed(),
+      ChronoBankAssetBasicLib.deployed(),
+      ChronoBankAssetBasicWithFeeLib.deployed(),
+      ChronoBankAssetPausableLib.deployed(),
+      ChronoBankAssetBlacklistableLib.deployed(),
       AssetsManager.deployed(),
       PlatformsManager.deployed(),
       WalletsManager.deployed(),
@@ -149,6 +161,10 @@ var setup = function (callback) {
       chronoBankAssetWithFee,
       chronoBankAssetProxy,
       chronoBankAssetWithFeeProxy,
+      chronoBankAssetBasicLib,
+      chronoBankAssetBasicWithFeeLib,
+      chronoBankAssetPausableLib,
+      chronoBankAssetBlacklistableLib,
       assetsManager,
       platformsManager,
       walletsManager,
@@ -198,6 +214,10 @@ var setup = function (callback) {
     module.exports.chronoBankAssetProxy = chronoBankAssetProxy
     module.exports.chronoBankAssetWithFee = chronoBankAssetWithFee
     module.exports.chronoBankAssetWithFeeProxy = chronoBankAssetWithFeeProxy
+    module.exports.chronoBankAssetBasicLib = chronoBankAssetBasicLib
+    module.exports.chronoBankAssetBasicWithFeeLib = chronoBankAssetBasicWithFeeLib
+    module.exports.chronoBankAssetPausableLib = chronoBankAssetPausableLib
+    module.exports.chronoBankAssetBlacklistableLib = chronoBankAssetBlacklistableLib
     module.exports.pollBackendProvider = pollBackendProvider // voting v.2
     module.exports.votingManager = votingManager // voting v.2
     module.exports.multiEventsHistory = multiEventsHistory

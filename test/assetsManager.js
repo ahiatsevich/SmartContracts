@@ -4,7 +4,9 @@ const ErrorsEnum = require("../common/errors")
 const Reverter = require('./helpers/reverter')
 const utils = require("./helpers/utils")
 
-const ChronoBankAssetBasic = artifacts.require('ChronoBankAssetBasic')
+const ChronoBankAssetRouter = artifacts.require("ChronoBankAssetRouter");
+const ChronoBankAssetRouterInterface = artifacts.require("ChronoBankAssetRouterInterface");
+
 const ChronoBankAssetProxy = artifacts.require('ChronoBankAssetProxy')
 const ChronoBankPlatform = artifacts.require('ChronoBankPlatform')
 const StorageManager = artifacts.require('StorageManager')
@@ -126,7 +128,9 @@ contract('Assets Manager', function(accounts) {
             await platform.changeOwnership(symbol, owner, { from: systemOwner, })
             await proxy.init(platform.address, symbol, symbol)
              // basic
-            const asset = await ChronoBankAssetBasic.new(platform.address, symbol, { from: owner, })
+            const asset = ChronoBankAssetRouterInterface.at( 
+                (await ChronoBankAssetRouter.new(platform.address, symbol, Setup.chronoBankAssetBasicLib.address, { from: owner, })).address
+            )
             await storageManager.giveAccess(asset.address, symbol)
             await asset.init(proxy.address, true, { from: owner, })
             await proxy.proposeUpgrade(asset.address, { from: owner, })
@@ -154,7 +158,6 @@ contract('Assets Manager', function(accounts) {
                 })
 
             }
-
 
             return platforms
         }

@@ -12,6 +12,11 @@ import "../core/storage/Storage.sol";
 import {ChronoBankAssetProxy as AssetProxy} from "../core/platform/ChronoBankAssetProxy.sol";
 import {ChronoBankAsset as Asset} from "../core/platform/ChronoBankAsset.sol";
 import {ChronoBankAssetWithFee as AssetWithFee} from "../core/platform/ChronoBankAssetWithFee.sol";
+import {ChronoBankAssetPausableRouter as PausableAsset} from "../core/platform/assets/routers/ChronoBankAssetPausableRouter.sol";
+import {ChronoBankAssetBlacklistableRouter as BlacklistableAsset} from "../core/platform/assets/routers/ChronoBankAssetBlacklistableRouter.sol";
+import {ChronoBankAssetRouter as AssetBasic} from "../core/platform/assets/routers/ChronoBankAssetRouter.sol";
+import {ChronoBankAssetWithFeeRouter as AssetBasicWithFee} from "../core/platform/assets/routers/ChronoBankAssetWithFeeRouter.sol";
+import {ChronoBankAssetWithFeeRouterInterface as AssetBasicWithFeeInterface} from "../core/platform/assets/routers/ChronoBankAssetWithFeeRouter.sol";
 
 //import {ChronoBankAssetWithCallback as AssetWithCallback} from "../core/platform/ChronoBankAssetWithCallback.sol";
 //import {ChronoBankAssetWithFeeAndCallback as AssetWithFeeAndCallback} from "../core/platform/ChronoBankAssetWithFeeAndCallback.sol";
@@ -59,6 +64,26 @@ contract TokenFactory is Owned {
     }
 }
 
+contract BackendBasedFactoryInterface is Owned {
+    
+    address public assetBackend;
+
+    constructor(address _assetBackend) public {
+        setAssetBackend(_assetBackend);
+    }
+
+    function setAssetBackend(address _assetBackend) 
+    public 
+    onlyContractOwner 
+    returns (bool) 
+    {
+        require(_assetBackend != 0x0, "ASSET_BASIC_FACTORY_INVALID_BACKEND");
+
+        assetBackend = _assetBackend;
+    }
+
+}
+
 
 /// @title Creates ChronoBankAsset contract
 contract ChronoBankAssetFactory is AssetFactoryInterface {
@@ -71,6 +96,18 @@ contract ChronoBankAssetFactory is AssetFactoryInterface {
     }
 }
 
+contract ChronoBankAssetBasicFactory is AssetFactoryInterface, BackendBasedFactoryInterface {
+
+    uint constant OK = 1;
+
+    constructor(address _assetBackend) BackendBasedFactoryInterface(_assetBackend) public {
+    }
+
+    /// @notice Creates basic asset contract
+    function createAsset(address _storage, bytes32 _crate) public returns (address _asset) {
+        _asset = new AssetBasic(Storage(_storage), _crate, assetBackend);
+    }
+}
 
 /// @title Creates ChronoBankAssetWithFee contract
 contract ChronoBankAssetWithFeeFactory is OwnedAssetFactoryInterface {
@@ -86,6 +123,44 @@ contract ChronoBankAssetWithFeeFactory is OwnedAssetFactoryInterface {
     }
 }
 
+contract ChronoBankAssetBasicWithFeeFactory is OwnedAssetFactoryInterface, BackendBasedFactoryInterface {
+    uint constant OK = 1;
+
+    constructor(address _assetBackend) BackendBasedFactoryInterface(_assetBackend) public {
+    }
+
+    /// @notice Creates basic asset with fee contract
+    /// @param _owner of an asset
+    function createOwnedAsset(address _owner, address _storage, bytes32 _crate) public returns (address) {
+        AssetBasicWithFee asset = new AssetBasicWithFee(Storage(_storage), _crate, assetBackend);
+        AssetBasicWithFeeInterface(asset).transferContractOwnership(_owner);
+        return asset;
+    }
+}
+
+contract ChronoBankAssetPausableFactory is AssetFactoryInterface, BackendBasedFactoryInterface {
+    uint constant OK = 1;
+
+    constructor(address _assetBackend) BackendBasedFactoryInterface(_assetBackend) public {
+    }
+
+    /// @notice Creates pausable asset without any asset modification
+    function createAsset(address _storage, bytes32 _crate) public returns (address _asset) {
+        _asset = new PausableAsset(Storage(_storage), _crate, assetBackend);
+    }
+}
+
+contract ChronoBankAssetBlacklistableFactory is AssetFactoryInterface, BackendBasedFactoryInterface {
+    uint constant OK = 1;
+
+    constructor(address _assetBackend) BackendBasedFactoryInterface(_assetBackend) public {
+    }
+    
+    /// @notice Creates blacklistable asset without any asset modification
+    function createAsset(address _storage, bytes32 _crate) public returns (address _asset) {
+        _asset = new BlacklistableAsset(Storage(_storage), _crate, assetBackend);
+    }
+}
 
 /**
 * @dev Creates ChronoBankAssetWithCallback contract

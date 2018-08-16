@@ -7,14 +7,9 @@ pragma solidity ^0.4.24;
 
 
 import "./libs/ChronoBankAssetChainableInterface.sol";
-import "../../storage/Storage.sol";
-import "../../storage/StorageInterface.sol";
-import {ChronoBankAssetProxyInterface as Proxy} from "../ChronoBankAssetProxyInterface.sol";
 
 
 library ChronoBankAssetUtils {
-
-    using StorageInterface for StorageInterface.Config;
 
     uint constant ASSETS_CHAIN_MAX_LENGTH = 20;
 
@@ -33,7 +28,7 @@ library ChronoBankAssetUtils {
             _tempAssets[_counter] = address(_next);
             _counter += 1;
 
-            _next = _next.nextAsset();
+            _next = _next.getNextAsset();
         } while (address(_next) != 0x0);
 
         _types = new bytes32[](_counter);
@@ -55,7 +50,7 @@ library ChronoBankAssetUtils {
                 return address(_next);
             }
 
-            _next = _next.nextAsset();
+            _next = _next.getNextAsset();
         } while (address(_next) != 0x0);
     }
 
@@ -70,7 +65,7 @@ library ChronoBankAssetUtils {
                 return true;
             }
 
-            _next = _next.nextAsset();
+            _next = _next.getNextAsset();
         } while (address(_next) != 0x0);
     }
 
@@ -82,47 +77,11 @@ library ChronoBankAssetUtils {
         ChronoBankAssetChainableInterface _head = _asset;
         ChronoBankAssetChainableInterface _previousAsset;
         do {
-            _previousAsset = _head.previousAsset();
+            _previousAsset = _head.getPreviousAsset();
             if (address(_previousAsset) == 0x0) {
                 return _head;
             }
             _head = _previousAsset;
         } while (true);
-    }
-
-    /// @notice Sets asset proxy address.
-    /// Can be set only once.
-    /// @dev function is final, and must not be overridden.
-    /// @return success.
-    function _initAssetLib(
-        address _asset, 
-        StorageInterface.Config storage _store, 
-        StorageInterface.Address storage _proxyStorage, 
-        address _gotProxy, 
-        address _newProxy, 
-        bool _finalizeChaining
-    )
-    internal 
-    returns (bool) 
-    {
-        require(
-            address(_store.store) == Proxy(_newProxy).chronoBankPlatform(), 
-            "ASSET_LIB_INVALID_STORAGE_INITIALIZED"
-        );
-
-        if (_finalizeChaining) {
-            ChronoBankAssetChainableInterface(_asset).finalizeAssetChaining();
-        }
-
-        if (_gotProxy != 0x0 && _newProxy == _gotProxy) {
-            return true;
-        }
-
-        if (_gotProxy != 0x0) {
-            return false;
-        }
-
-        _store.set(_proxyStorage, _newProxy);
-        return true;
     }
 }

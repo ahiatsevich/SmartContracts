@@ -115,8 +115,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface, StorageAdapter {
         return ChronoBankAssetProxy(store.get(proxyStorage));
     }
 
-    function 
-    blacklist(address _account) 
+    function blacklist(address _account) 
     public 
     view 
     returns (bool) 
@@ -133,7 +132,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface, StorageAdapter {
     }
 
     /// @notice Lifts the ban on transfers for given addresses
-    function restrict(address [] _restricted) 
+    function restrict(address[] _restricted) 
     external 
     onlyAuthorized 
     returns (bool) 
@@ -147,7 +146,7 @@ contract ChronoBankAsset is ChronoBankAssetInterface, StorageAdapter {
     }
 
     /// @notice Revokes the ban on transfers for given addresses
-    function unrestrict(address [] _unrestricted) 
+    function unrestrict(address[] _unrestricted) 
     external 
     onlyAuthorized 
     returns (bool) 

@@ -19,8 +19,8 @@ contract ChronoBankAssetChainableCore {
 
     uint constant ASSETS_CHAIN_MAX_LENGTH = 20;
 
-    ChronoBankAssetChainableInterface public previousAsset;
-    ChronoBankAssetChainableInterface public nextAsset;
+    ChronoBankAssetChainableInterface internal previousAsset;
+    ChronoBankAssetChainableInterface internal nextAsset;
     bool public chainingFinalized;
 
     string public version = "v0.0.1";
@@ -28,12 +28,36 @@ contract ChronoBankAssetChainableCore {
 
 
 contract ChronoBankAssetChainableImpl is 
-    ChronoBankAssetChainableCore, 
-    ChronoBankAssetChainableInterface 
+    ChronoBankAssetChainableInterface,
+    ChronoBankAssetChainableCore
 {  
     modifier onlyNotFinalizedChaining {
         require(chainingFinalized == false, "ASSET_CHAIN_SHOULD_NOT_BE_IN_FINALIZED_CHAINING");
         _;
+    }
+
+    function assetType() 
+    public 
+    pure 
+    returns (bytes32)
+    {
+        revert("INVALID_INVOCATION_IMPLEMENT_ASSET_TYPE_FUNCTION");
+    }
+
+    function getPreviousAsset() 
+    public 
+    view 
+    returns (ChronoBankAssetChainableInterface)
+    {
+        return previousAsset;
+    }
+
+    function getNextAsset() 
+    public 
+    view 
+    returns (ChronoBankAssetChainableInterface)
+    {
+        return nextAsset;
     }
 
     function getChainedAssets() 
@@ -104,7 +128,7 @@ contract ChronoBankAssetChainableImpl is
     returns (bool)
     {
         require(msg.sender == address(_asset), "ASSET_CHAIN_SENDER_SHOULD_SEND_HIMSELF");
-        // require(address(_asset.nextAsset()) == address(this), "Only when `next` property set to the current asset");
+        // require(address(_asset.getNextAsset()) == address(this), "Only when `next` property set to the current asset");
         previousAsset = _asset;
 
         return true;

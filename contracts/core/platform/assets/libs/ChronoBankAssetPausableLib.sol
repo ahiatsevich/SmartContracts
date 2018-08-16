@@ -11,22 +11,6 @@ import "./ChronoBankAssetChainableImpl.sol";
 import "../routers/ChronoBankAssetPausableRouter.sol";
 
 
-contract ChronoBankAssetPausableEmitter {
-
-    /// @dev Paused/Unpaused events
-    event Paused(bytes32 indexed symbol);
-    event Unpaused(bytes32 indexed symbol);
-
-    function emitPaused(bytes32 _symbol) public {
-        emit Paused(_symbol);
-    }
-
-    function emitUnpaused(bytes32 _symbol) public {
-        emit Unpaused(_symbol);
-    }
-}
-
-
 contract ChronoBankAssetPausableLib is 
     ChronoBankAssetLibAbstract,
     ChronoBankAssetPausableCore,

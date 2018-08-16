@@ -7,10 +7,16 @@ pragma solidity ^0.4.24;
 
 
 import "./ChronoBankAssetRouter.sol";
+import "./ChronoBankAssetRouterInterface.sol";
+import "./ChronoBankAssetBlacklistableEmitter.sol";
 
 
-contract ChronoBankAssetBlacklistableInterface {
+contract ChronoBankAssetBlacklistableRouterInterface is ChronoBankAssetRouterInterface, ChronoBankAssetBlacklistableEmitter {
 
+    function blacklist(address _account) public view returns (bool);
+
+    function restrict(address[] _restricted) external returns (bool);
+    function unrestrict(address[] _unrestricted) external returns (bool);
 }
 
 

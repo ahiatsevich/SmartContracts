@@ -1,34 +1,15 @@
 /**
- * Copyright 2017–2018, LaborX PTY
- * Licensed under the AGPL Version 3 license.
- */
+* Copyright 2017–2018, LaborX PTY
+* Licensed under the AGPL Version 3 license.
+*/
 
 pragma solidity ^0.4.24;
 
 
-import "./ChronoBankAssetAbstract.sol";
+import "./ChronoBankAssetLibAbstract.sol";
 
 
-/// @title ChronoBank Asset implementation contract.
-///
-/// Basic asset implementation contract, without any additional logic.
-/// Every other asset implementation contracts should derive from this one.
-/// Receives calls from the proxy, and calls back immediatly without arguments modification.
-///
-/// Note: all the non constant functions return false instead of throwing in case if state change
-/// didn't happen yet.
-contract ChronoBankAssetBasic is ChronoBankAssetAbstract {
-
-    constructor(Storage _platform, bytes32 _crate) ChronoBankAssetAbstract(_platform, _crate) public {
-    }
-
-    function assetType()
-    public
-    pure
-    returns (bytes32)
-    {
-        return "ChronoBankAssetBasic";
-    }
+contract ChronoBankAssetBasicLibAbstract is ChronoBankAssetLibAbstract {    
 
     function _beforeTransferWithReference(
         address, 

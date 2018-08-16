@@ -8,10 +8,10 @@ pragma solidity ^0.4.24;
 
 import {ChronoBankAssetProxyInterface as ChronoBankAssetProxy} from "../../ChronoBankAssetProxyInterface.sol";
 import {ChronoBankPlatformInterface as ChronoBankPlatform} from "../../ChronoBankPlatformInterface.sol";
+import "./ChronoBankAssetChainableInterface.sol";
 import "../routers/ChronoBankAssetRouter.sol";
 import "../routers/ChronoBankAssetAbstractCore.sol";
-import "./ChronoBankAssetChainableInterface.sol";
-import "../ChronoBankAssetUtils.sol";
+import "../../ChronoBankAssetInterface.sol";
 
 
 contract ChronoBankAssetLibAbstract is 
@@ -30,16 +30,13 @@ contract ChronoBankAssetLibAbstract is
     /// @dev Only assigned proxy is allowed to call.
     modifier onlyProxy {
         if (msg.sender == address(proxy()) || 
-            msg.sender == address(this.previousAsset())
+            msg.sender == address(ChronoBankAssetChainableInterface(this).getPreviousAsset())
         ) {
             _;
         }
     }
 
-    function nextAsset() external view returns (ChronoBankAssetChainableInterface);
-    function previousAsset() external view returns (ChronoBankAssetChainableInterface);
-
-     /// @notice Sets asset proxy address.
+    /// @notice Sets asset proxy address.
     /// Can be set only once.
     /// @dev function is final, and must not be overridden.
     /// @param _proxy asset proxy contract address.
@@ -48,7 +45,26 @@ contract ChronoBankAssetLibAbstract is
     public 
     returns (bool) 
     {
-        return ChronoBankAssetUtils._initAssetLib(this, store, proxyStorage, proxy(), _proxy, _finalizeChaining);
+        require(
+            address(store.store) == _proxy.chronoBankPlatform(), 
+            "ASSET_LIB_INVALID_STORAGE_INITIALIZED"
+        );
+
+        if (_finalizeChaining) {
+            ChronoBankAssetChainableInterface(this).finalizeAssetChaining();
+        }
+
+        address _gotProxy = proxy();
+        if (_gotProxy != 0x0 && address(_proxy) == _gotProxy) {
+            return true;
+        }
+
+        if (_gotProxy != 0x0) {
+            return false;
+        }
+
+        store.set(proxyStorage, address(_proxy));
+        return true;
     }
 
     function proxy() 
@@ -89,7 +105,7 @@ contract ChronoBankAssetLibAbstract is
             return false;
         }
 
-        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(this.nextAsset());
+        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(ChronoBankAssetChainableInterface(this).getNextAsset());
         if (address(_nextAsset) == 0x0 || 
             _nextAsset.__transferWithReference(_to, _value, _reference, _sender)
         ) {
@@ -140,7 +156,7 @@ contract ChronoBankAssetLibAbstract is
             return false;
         }
 
-        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(this.nextAsset());
+        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(ChronoBankAssetChainableInterface(this).getNextAsset());
         if (address(_nextAsset) == 0x0 || 
             _nextAsset.__transferFromWithReference(_from, _to, _value, _reference, _sender)
         ) {
@@ -187,7 +203,7 @@ contract ChronoBankAssetLibAbstract is
             return false;
         }
 
-        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(this.nextAsset());
+        ChronoBankAssetInterface _nextAsset = ChronoBankAssetInterface(ChronoBankAssetChainableInterface(this).getNextAsset());
         if (address(_nextAsset) == 0x0 || 
             _nextAsset.__approve(_spender, _value, _sender)
         ) {

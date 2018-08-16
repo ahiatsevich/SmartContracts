@@ -1,7 +1,10 @@
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
-const ChronoBankAssetBasic = artifacts.require("ChronoBankAssetBasic");
-const ChronoBankAssetPausable = artifacts.require("ChronoBankAssetPausable");
-const ChronoBankAssetBlacklistable = artifacts.require("ChronoBankAssetBlacklistable");
+const ChronoBankAssetRouter = artifacts.require("ChronoBankAssetRouter");
+const ChronoBankAssetRouterInterface = artifacts.require("ChronoBankAssetRouterInterface");
+const ChronoBankAssetPausableRouter = artifacts.require("ChronoBankAssetPausableRouter");
+const ChronoBankAssetPausableRouterInterface = artifacts.require("ChronoBankAssetPausableRouterInterface");
+const ChronoBankAssetBlacklistableRouter = artifacts.require("ChronoBankAssetBlacklistableRouter");
+const ChronoBankAssetBlacklistableRouterInterface = artifacts.require("ChronoBankAssetBlacklistableRouterInterface");
 var ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
 const StorageManager = artifacts.require("StorageManager");
 var Stub = artifacts.require("./Stub.sol");
@@ -9,6 +12,7 @@ var Stub = artifacts.require("./Stub.sol");
 var Reverter = require('./helpers/reverter');
 var bytes32 = require('./helpers/bytes32');
 var eventsHelper = require('./helpers/eventsHelper');
+const Setup = require('../setup/setup')
 
 contract('ChronoBankAsset', function(accounts) {
   var reverter = new Reverter(web3);
@@ -31,6 +35,8 @@ contract('ChronoBankAsset', function(accounts) {
   var stub;
 
   before('setup others', async () => {
+    await Setup.setupPromise()
+
     stub = await Stub.new()
     storageManager = await StorageManager.new()
     chronoBankPlatform = await ChronoBankPlatformTestable.new()
@@ -45,23 +51,24 @@ contract('ChronoBankAsset', function(accounts) {
     await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
     
     // pausable
-    chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
+    chronoBankAssetPausable = ChronoBankAssetPausableRouterInterface.at(
+      (await ChronoBankAssetPausableRouter.new(chronoBankPlatform.address, SYMBOL, Setup.chronoBankAssetPausableLib.address)).address
+    )
     await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
     
     // blacklistable
-    chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
+    chronoBankAssetBlacklistable = ChronoBankAssetBlacklistableRouterInterface.at(
+      (await ChronoBankAssetBlacklistableRouter.new(chronoBankPlatform.address, SYMBOL, Setup.chronoBankAssetBlacklistableLib.address)).address
+    )
     await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
-    /* NOTE: Don't have to do `init` because it is enough to initialize head of assets' chain */
-    // await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false) 
     
     // basic
-    chronoBankAsset = await ChronoBankAssetBasic.new(chronoBankPlatform.address, SYMBOL)
+    chronoBankAsset = ChronoBankAssetRouterInterface.at(
+      (await ChronoBankAssetRouter.new(chronoBankPlatform.address, SYMBOL, Setup.chronoBankAssetBasicLib.address)).address
+    )
     await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
-    /* NOTE: Don't have to do `init` because it is enough to initialize head of assets' chain */
-    // await chronoBankAsset.init(chronoBankAssetProxy.address, false)
     
     await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAsset.address, ])
-    
     /* NOTE: Only single init needed to fully initialize chain of assets */
     await chronoBankAssetPausable.init(chronoBankAssetProxy.address, true) 
 
@@ -1177,7 +1184,7 @@ contract('ChronoBankAsset', function(accounts) {
     let asset
 
     beforeEach(async () => {
-      asset = ChronoBankAssetPausable.at(await chronoBankAsset.getAssetByType("ChronoBankAssetPausable"))
+      asset = ChronoBankAssetPausableRouterInterface.at(await chronoBankAsset.getAssetByType("ChronoBankAssetPausable"))
     })
 
     it('should be possible to pause/resume contract', async() => {
@@ -1266,7 +1273,7 @@ contract('ChronoBankAsset', function(accounts) {
     let asset
 
     beforeEach(async () => {
-      asset = ChronoBankAssetBlacklistable.at(await chronoBankAsset.getAssetByType("ChronoBankAssetBlacklistable"))
+      asset = ChronoBankAssetBlacklistableRouterInterface.at(await chronoBankAsset.getAssetByType("ChronoBankAssetBlacklistable"))
     })
 
     it('should be possible to add/remove addresses in blacklist', async() => {

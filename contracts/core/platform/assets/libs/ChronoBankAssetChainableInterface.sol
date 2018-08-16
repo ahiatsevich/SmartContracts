@@ -10,8 +10,11 @@ contract ChronoBankAssetChainableInterface {
 
     function assetType() public pure returns (bytes32);
 
-    function previousAsset() external view returns (ChronoBankAssetChainableInterface);
-    function nextAsset() external view returns (ChronoBankAssetChainableInterface);
+    function getPreviousAsset() public view returns (ChronoBankAssetChainableInterface);
+    function getNextAsset() public view returns (ChronoBankAssetChainableInterface);
+
+    function getChainedAssets() public view returns (bytes32[] _types, address[] _assets);
+    function getAssetByType(bytes32 _assetType) public view returns (address);
 
     function chainAssets(ChronoBankAssetChainableInterface[] _assets) external returns (bool);
     function __chainAssetsFromIdx(ChronoBankAssetChainableInterface[] _assets, uint _startFromIdx) external returns (bool);

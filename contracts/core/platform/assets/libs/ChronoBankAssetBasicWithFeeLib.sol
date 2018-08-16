@@ -6,24 +6,18 @@
 pragma solidity ^0.4.24;
 
 
-import "./ChronoBankAssetBasic.sol";
-import "../../common/Owned.sol";
+import "./ChronoBankAssetBasicLibAbstract.sol";
+import "./ChronoBankAssetChainableImpl.sol";
+import "../routers/ChronoBankAssetWithFeeRouter.sol";
+import "../../../common/Owned.sol";
 
 
-/// @title ChronoBank Asset With Fee implementation contract.
-///
-/// Asset implementation contract that takes percent fee on top of every transfer.
-/// Fee amount is always rounded up.
-///
-/// Note: all the non constant functions return false instead of throwing in case if state change
-/// didn't happen yet.
-contract ChronoBankAssetBasicWithFee is Owned, ChronoBankAssetBasic {
-
-    /// @dev Fee collecting address, immutable.
-    StorageInterface.Address private feeAddressStorage;
-    /// @dev Fee percent, immutable. 1 is 0.01%, 10000 is 100%.
-    StorageInterface.UInt private feePercentStorage;
-
+contract ChronoBankAssetBasicWithFeeLib is 
+    ChronoBankAssetBasicLibAbstract,
+    ChronoBankAssetWithFeeCore,
+    Owned,
+    ChronoBankAssetChainableImpl
+{    
     /// @dev Allows the call if fee was successfully taken, throws if the call failed in the end.
     modifier takeFee(address _from, uint _fromValue, address _sender, bool[1] memory _success) {
         if (_transferFee(_from, _fromValue, _sender)) {
@@ -34,10 +28,6 @@ contract ChronoBankAssetBasicWithFee is Owned, ChronoBankAssetBasic {
         }
     }
 
-    constructor(Storage _platform, bytes32 _crate) ChronoBankAssetBasic(_platform, _crate) public {
-        feeAddressStorage.init("feeAddress");
-        feePercentStorage.init("feePercent");
-    }
 
     function assetType()
     public

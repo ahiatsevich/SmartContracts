@@ -22,7 +22,7 @@ contract TokenExtensionRouter is BaseRouter, PlatformTokenExtensionGatewayManage
     /** @dev platform address to which token extension is attached */
     address public platform;
 
-    function TokenExtensionRouter(address _contractsManager, address _platform) public {
+    constructor(address _contractsManager, address _platform) public {
         contractsManager = _contractsManager;
         platform = _platform;
     }

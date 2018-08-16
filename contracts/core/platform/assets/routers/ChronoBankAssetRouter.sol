@@ -7,7 +7,6 @@ pragma solidity ^0.4.24;
 
 
 import "../../../common/BaseByzantiumRouter.sol";
-import "../../ChronoBankAssetInterface.sol";
 import "./ChronoBankAssetAbstractCore.sol";
 
 
@@ -18,7 +17,6 @@ contract ChronoBankAssetRouterCore {
 
 contract ChronoBankAssetRouter is 
     BaseByzantiumRouter, 
-    // ChronoBankAssetInterface, 
     ChronoBankAssetRouterCore,
     ChronoBankAssetAbstractRouter
 {

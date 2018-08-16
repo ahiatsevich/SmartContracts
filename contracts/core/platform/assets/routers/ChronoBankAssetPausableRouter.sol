@@ -7,10 +7,16 @@ pragma solidity ^0.4.24;
 
 
 import "./ChronoBankAssetRouter.sol";
+import "./ChronoBankAssetRouterInterface.sol";
+import "./ChronoBankAssetPausableEmitter.sol";
 
 
-contract ChronoBankAssetPausableInterface {
+contract ChronoBankAssetPausableRouterInterface is ChronoBankAssetRouterInterface, ChronoBankAssetPausableEmitter {
 
+    function paused() public view returns (bool);
+
+    function pause() external returns (bool);
+    function unpause() external returns (bool);
 }
 
 

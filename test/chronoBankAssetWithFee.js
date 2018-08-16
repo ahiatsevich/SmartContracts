@@ -1,7 +1,11 @@
 var ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
-const ChronoBankAssetBasicWithFee = artifacts.require("ChronoBankAssetBasicWithFee");
-const ChronoBankAssetPausable = artifacts.require("ChronoBankAssetPausable");
-const ChronoBankAssetBlacklistable = artifacts.require("ChronoBankAssetBlacklistable");
+const ChronoBankAssetWithFeeRouter = artifacts.require("ChronoBankAssetRouter");
+const ChronoBankAssetWithFeeRouterInterface = artifacts.require("ChronoBankAssetRouterInterface");
+const ChronoBankAssetPausableRouter = artifacts.require("ChronoBankAssetPausableRouter");
+const ChronoBankAssetPausableRouterInterface = artifacts.require("ChronoBankAssetPausableRouterInterface");
+const ChronoBankAssetBlacklistableRouter = artifacts.require("ChronoBankAssetBlacklistableRouter");
+const ChronoBankAssetBlacklistableRouterInterface = artifacts.require("ChronoBankAssetBlacklistableRouterInterface");
+
 var ChronoBankAssetProxy = artifacts.require("./ChronoBankAssetProxy.sol");
 const StorageManager = artifacts.require("StorageManager");
 var Stub = artifacts.require("./Stub.sol");
@@ -9,6 +13,7 @@ var Stub = artifacts.require("./Stub.sol");
 var Reverter = require('./helpers/reverter');
 var bytes32 = require('./helpers/bytes32');
 var eventsHelper = require('./helpers/eventsHelper');
+const Setup = require('../setup/setup')
 
 contract('ChronoBankAssetWithFee', function(accounts) {
   var reverter = new Reverter(web3);
@@ -31,6 +36,8 @@ contract('ChronoBankAssetWithFee', function(accounts) {
   var stub;
 
   before('setup others', async () => {
+    await Setup.setupPromise()
+
     stub = await Stub.new()
     storageManager = await StorageManager.new()
     chronoBankPlatform = await ChronoBankPlatformTestable.new()
@@ -45,25 +52,26 @@ contract('ChronoBankAssetWithFee', function(accounts) {
     await chronoBankAssetProxy.init(chronoBankPlatform.address, SYMBOL, NAME)
 
     // pausable
-    chronoBankAssetPausable = await ChronoBankAssetPausable.new(chronoBankPlatform.address, SYMBOL)
+    chronoBankAssetPausable = ChronoBankAssetPausableRouterInterface.at(
+      (await ChronoBankAssetPausableRouter.new(chronoBankPlatform.address, SYMBOL, Setup.chronoBankAssetPausableLib.address)).address
+    )
     await storageManager.giveAccess(chronoBankAssetPausable.address, SYMBOL)
-    /* NOTE: Don't have to do `init` because it is enough to initialize head of assets' chain */
-    // await chronoBankAssetPausable.init(chronoBankAssetProxy.address, false)
     
     // blacklistable
-    chronoBankAssetBlacklistable = await ChronoBankAssetBlacklistable.new(chronoBankPlatform.address, SYMBOL)
+    chronoBankAssetBlacklistable = ChronoBankAssetBlacklistableRouterInterface.at(
+      (await ChronoBankAssetBlacklistableRouter.new(chronoBankPlatform.address, SYMBOL, Setup.chronoBankAssetBlacklistableLib.address)).address
+    )
     await storageManager.giveAccess(chronoBankAssetBlacklistable.address, SYMBOL)
-    /* NOTE: Don't have to do `init` because it is enough to initialize head of assets' chain */
-    // await chronoBankAssetBlacklistable.init(chronoBankAssetProxy.address, false)
-
+    
     // basic with fee
-    chronoBankAsset = await ChronoBankAssetBasicWithFee.new(chronoBankPlatform.address, SYMBOL)
+    chronoBankAsset = ChronoBankAssetWithFeeRouterInterface.at(
+      (await ChronoBankAssetWithFeeRouter.new(chronoBankPlatform.address, SYMBOL, Setup.ChronoBankAssetBasicWithFee.address)).address
+    )
     await storageManager.giveAccess(chronoBankAsset.address, SYMBOL)
 
     /* NOTE: Only single init needed to fully initialize chain of assets */
-    await chronoBankAsset.init(chronoBankAssetProxy.address, true)
-
     await chronoBankAssetPausable.chainAssets([ chronoBankAssetBlacklistable.address, chronoBankAsset.address, ])
+    await chronoBankAsset.init(chronoBankAssetProxy.address, true)
 
     await chronoBankAssetProxy.proposeUpgrade(chronoBankAsset.address)
 

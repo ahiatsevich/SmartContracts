@@ -3,15 +3,16 @@ const FakeCoin2 = artifacts.require("./FakeCoin2.sol")
 const ChronoBankPlatformTestable = artifacts.require("./ChronoBankPlatformTestable.sol");
 const StorageManager = artifacts.require("StorageManager");
 const ChronoBankAssetProxy = artifacts.require('./ChronoBankAssetProxy.sol')
-const ChronoBankAssetBasicWithFee = artifacts.require("ChronoBankAssetBasicWithFee");
-const ChronoBankAssetBasic = artifacts.require("ChronoBankAssetBasic");
+
+const ChronoBankAssetRouter = artifacts.require("ChronoBankAssetRouter");
+const ChronoBankAssetRouterInterface = artifacts.require("ChronoBankAssetRouterInterface");
+const ChronoBankAssetWithFeeRouter = artifacts.require("ChronoBankAssetRouter");
+const ChronoBankAssetWithFeeRouterInterface = artifacts.require("ChronoBankAssetRouterInterface");
+
 const Stub = artifacts.require("./Stub.sol");
 const Setup = require('../setup/setup')
 const Reverter = require('./helpers/reverter')
 const bytes32 = require('./helpers/bytes32')
-const bytes32fromBase58 = require('./helpers/bytes32fromBase58')
-const eventsHelper = require('./helpers/eventsHelper')
-const utils = require('./helpers/utils')
 const ErrorsEnum = require("../common/errors")
 
 contract('ERC20 Manager', function(accounts) {
@@ -74,7 +75,9 @@ contract('ERC20 Manager', function(accounts) {
         await chronoBankAssetProxy.init(chronoBankPlatform.address, TOKEN_SYMBOL, TOKEN_SYMBOL)
 
         // basic
-        chronoBankAsset = await ChronoBankAssetBasic.new(chronoBankPlatform.address, TOKEN_SYMBOL)
+        chronoBankAsset = ChronoBankAssetRouterInterface.at(
+            (await ChronoBankAssetRouter.new(chronoBankPlatform.address, TOKEN_SYMBOL, Setup.chronoBankAssetBasicLib.address)).address
+        )
         await storageManager.giveAccess(chronoBankAsset.address, TOKEN_SYMBOL)
         await chronoBankAsset.init(chronoBankAssetProxy.address, true)
         
@@ -85,7 +88,9 @@ contract('ERC20 Manager', function(accounts) {
         await chronoBankAssetWithFeeProxy.init(chronoBankPlatform.address, TOKEN_2_SYMBOL, TOKEN_2_SYMBOL)
 
         // basic with fee
-        chronoBankAssetWithFee = await ChronoBankAssetBasicWithFee.new(chronoBankPlatform.address, TOKEN_2_SYMBOL)
+        chronoBankAssetWithFee = ChronoBankAssetWithFeeRouterInterface.at(
+            (await ChronoBankAssetWithFeeRouter.new(chronoBankPlatform.address, TOKEN_2_SYMBOL, Setup.chronoBankAssetBasicWithFeeLib.address)).address
+        )
         await storageManager.giveAccess(chronoBankAssetWithFee.address, TOKEN_2_SYMBOL)
         await chronoBankAssetWithFee.init(chronoBankAssetWithFeeProxy.address, true)
 
