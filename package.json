@@ -9,7 +9,7 @@
     "test": "npx truffle test",
     "compile": "npx truffle compile",
     "compile:all": "npx truffle compile --all",
-    "testrpc": "npx ganache-cli -g 1 --gasLimit 5700000 --trace_request true --verbose | grep -Ev \"FilterSubprovider|eth_getFilterChanges\"",
+    "testrpc": "npx ganache-cli -g 1 --gasLimit 6000000 --trace_request true --verbose | grep -Ev \"FilterSubprovider|eth_getFilterChanges\"",
     "testgas": "NODE_ENV=gasreportgen ./node_modules/truffle/build/cli.bundled.js test",
     "gasreport": "./scripts/gas-report/gasreport.cli.js"
   },
